@@ -606,6 +606,13 @@
               </div>
             </label>
             <span class="hint">O filtro escolhido será aplicado nos 4 períodos.</span>
+
+            <span class="label" style="margin-top:12px">Visão dos ofensores</span>
+            <div class="segmented" role="group">
+              <button id="viewMatriz" type="button">Matriz (Top 5)</button>
+              <button id="viewDiretoria" class="active" type="button">Diretoria (Top 10)</button>
+            </div>
+            <span class="hint">Matriz mostra Top 5 ofensores Improdutivos + Top 5 de Manutenção. Diretoria mostra Top 10 de cada.</span>
           </div>
 
           <div id="equipGroup" class="control-card">
@@ -714,7 +721,8 @@
       maxDate: null,
       lastResult: null,
       supabase: null,
-      channel: null
+      channel: null,
+      offenderView: 'diretoria' // 'matriz' (top 5) ou 'diretoria' (top 10)
     };
 
     const $ = (id) => document.getElementById(id);
@@ -738,6 +746,8 @@
       $('modeFront').addEventListener('click', () => setMode('front'));
       $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
       $('skipP1Toggle').addEventListener('change', () => maybeAutoCalc());
+      $('viewMatriz').addEventListener('click', () => setOffenderView('matriz'));
+      $('viewDiretoria').addEventListener('click', () => setOffenderView('diretoria'));
       $('calcBtn').addEventListener('click', calcComparison);
       $('copyTableBtn').addEventListener('click', copyTableToClipboard);
       $('exportCsvBtn').addEventListener('click', exportCsv);
@@ -985,6 +995,21 @@
       render();
     }
 
+    function setOffenderView(view) {
+      state.offenderView = view;
+      $('viewMatriz').classList.toggle('active', view === 'matriz');
+      $('viewDiretoria').classList.toggle('active', view === 'diretoria');
+      maybeAutoCalc();
+    }
+
+    function offenderLimit() {
+      return state.offenderView === 'matriz' ? 5 : 10;
+    }
+
+    function offenderViewLabel() {
+      return state.offenderView === 'matriz' ? 'Matriz' : 'Diretoria';
+    }
+
     function setMode(mode) {
       state.mode = mode;
       $('modeEquip').classList.toggle('active', mode === 'equip');
@@ -1060,6 +1085,8 @@
     function calcPeriod(period, filters) {
       const offendersImprodutivo = Object.create(null);
       const offImprodutivoByFront = Object.create(null);
+      const offendersManutencao = Object.create(null);
+      const offManutencaoByFront = Object.create(null);
       let total = 0;
       let produtiva = 0;
       let improdutivoClass = 0;
@@ -1086,6 +1113,12 @@
           offendersImprodutivo[atividade] = (offendersImprodutivo[atividade] || 0) + h;
           if (!offImprodutivoByFront[atividade]) offImprodutivoByFront[atividade] = Object.create(null);
           offImprodutivoByFront[atividade][frente] = (offImprodutivoByFront[atividade][frente] || 0) + 1;
+        } else if (cls === 'MANUTENCAO') {
+          const atividade = row.a || 'SEM APONTAMENTO';
+          const frente = row.f || 'SEM FRENTE';
+          offendersManutencao[atividade] = (offendersManutencao[atividade] || 0) + h;
+          if (!offManutencaoByFront[atividade]) offManutencaoByFront[atividade] = Object.create(null);
+          offManutencaoByFront[atividade][frente] = (offManutencaoByFront[atividade][frente] || 0) + 1;
         }
 
         if (cls === 'IMPRODUTIVO') improdutivoClass += h;
@@ -1099,11 +1132,13 @@
       const pctImprod = total > 0 ? (improdutivoClass / total) * 100 : 0;
       const pctDisponivel = total > 0 ? (disponivel / total) * 100 : 0;
       const offenderImprodutivoList = Object.entries(offendersImprodutivo).map(([atividade, horas]) => ({ atividade, horas })).sort((a, b) => b.horas - a.horas);
+      const offenderManutencaoList = Object.entries(offendersManutencao).map(([atividade, horas]) => ({ atividade, horas })).sort((a, b) => b.horas - a.horas);
 
       return {
         total, produtiva, improdutivoClass, indisponivel, disponivel, parado,
         eficiencia, pctProd, pctImprod, pctDisponivel,
         offendersImprodutivo, offenderImprodutivoList, offImprodutivoByFront,
+        offendersManutencao, offenderManutencaoList, offManutencaoByFront,
         deslocamentoProdutivoHoras, rows: count
       };
     }
@@ -1139,8 +1174,10 @@
         };
         const calculated = periods.map(p => calcPeriod(p, filters));
         const base = calculated[3] || calculated[1] || null;
-        const baseOffendersImprodutivo = base ? base.offenderImprodutivoList.slice(0, 10) : [];
-        const result = { periods, labels: ['Período 1','Período 2','Período 3','Período 4'], calculated, baseOffendersImprodutivo };
+        const limit = offenderLimit();
+        const baseOffendersImprodutivo = base ? base.offenderImprodutivoList.slice(0, limit) : [];
+        const baseOffendersManutencao = base ? base.offenderManutencaoList.slice(0, limit) : [];
+        const result = { periods, labels: ['Período 1','Período 2','Período 3','Período 4'], calculated, baseOffendersImprodutivo, baseOffendersManutencao };
 
         state.lastResult = result;
         renderResults(result);
@@ -1166,11 +1203,11 @@
 
     function renderResults(result) {
       const selectionText = getSelectionText();
-      setStatus(`Comparação calculada. Filtro aplicado: ${selectionText}. Base dos ofensores: Período 2. Somente ofensores Improdutivos exibidos.`, false);
-      renderComparisonTable(result.calculated, result.baseOffendersImprodutivo, result.periods);
+      setStatus(`Comparação calculada. Filtro aplicado: ${selectionText}. Base dos ofensores: Período 2. Visão: ${offenderViewLabel()} (Top ${offenderLimit()}).`, false);
+      renderComparisonTable(result.calculated, result.baseOffendersImprodutivo, result.baseOffendersManutencao, result.periods);
     }
 
-    function renderComparisonTable(calculatedAll, baseOffendersImprodutivo, periodsAll) {
+    function renderComparisonTable(calculatedAll, baseOffendersImprodutivo, baseOffendersManutencao, periodsAll) {
       const skipP1 = $('skipP1Toggle').checked;
       const calculated = skipP1 ? calculatedAll.slice(1) : calculatedAll;
       const periods    = skipP1 ? periodsAll.slice(1)    : periodsAll;
@@ -1190,7 +1227,10 @@
       rows.push(`<tr class="metric-line"><th>% Improdutivo</th>${calculated.map(p => `<td>${fmtPct(p.pctImprod)}</td>`).join('')}</tr>`);
       rows.push(`<tr class="metric-line"><th>% Disponibilidade</th>${calculated.map(p => `<td>${fmtPct(p.pctDisponivel)}</td>`).join('')}</tr>`);
 
-      appendOffenderBlock(rows, calculated, baseOffendersImprodutivo || [], 'Top 10 ofensores Improdutivos — ordenado pelo Período 4');
+      const limit = offenderLimit();
+      const viewLabel = offenderViewLabel();
+      appendOffenderBlock(rows, calculated, baseOffendersImprodutivo || [], `${viewLabel} — Top ${limit} ofensores Improdutivos — ordenado pelo Período 4`, 'offendersImprodutivo');
+      appendOffenderBlock(rows, calculated, baseOffendersManutencao || [], `${viewLabel} — Top ${limit} ofensores Manutenção — ordenado pelo Período 4`, 'offendersManutencao');
 
       const mainHtml = frenteHtml + `
         <table id="comparisonTable">
@@ -1198,13 +1238,13 @@
           <tbody>${rows.join('')}</tbody>
         </table>`;
 
-      const periodTablesHtml = periods.map((p, i) => {
+      const buildPeriodTables = (listName, emptyLabel) => periods.map((p, i) => {
         const calc = calculated[i];
         if (!calc) return '';
-        const offList = calc.offenderImprodutivoList || [];
+        const offList = (calc[listName] || []).slice(0, limit);
         if (!offList.length) return `
           <div style="margin-top:16px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--muted);font-size:13px">
-            <strong style="color:var(--ink)">Período ${i+1} — ${formatDateBr(p.start)} a ${formatDateBr(p.end)}</strong><br>Nenhum ofensor Improdutivo neste período.
+            <strong style="color:var(--ink)">Período ${i+1} — ${formatDateBr(p.start)} a ${formatDateBr(p.end)}</strong><br>Nenhum ofensor ${emptyLabel} neste período.
           </div>`;
         const totalParado = calc.parado || 0;
         const maxHoras = offList[0].horas || 1;
@@ -1249,16 +1289,24 @@
           </div>`;
       }).join('');
 
+      const periodTablesImprodutivoHtml = buildPeriodTables('offenderImprodutivoList', 'Improdutivo');
+      const periodTablesManutencaoHtml = buildPeriodTables('offenderManutencaoList', 'de Manutenção');
+
       $('resultTable').innerHTML = mainHtml + `
         <div style="margin-top:32px;padding:0 2px">
-          <div style="font-size:17px;font-weight:900;color:var(--ink);margin-bottom:2px">Ofensores Improdutivos por período</div>
+          <div style="font-size:17px;font-weight:900;color:var(--ink);margin-bottom:2px">${viewLabel} — Top ${limit} ofensores Improdutivos por período</div>
           <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Classificação: IMPRODUTIVO — ordenado por horas (maior → menor).</div>
-          ${periodTablesHtml}
+          ${periodTablesImprodutivoHtml}
+        </div>
+        <div style="margin-top:32px;padding:0 2px">
+          <div style="font-size:17px;font-weight:900;color:var(--ink);margin-bottom:2px">${viewLabel} — Top ${limit} ofensores de Manutenção por período</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Classificação: MANUTENÇÃO — ordenado por horas (maior → menor).</div>
+          ${periodTablesManutencaoHtml}
         </div>`;
       $('resultTable').classList.remove('hidden');
     }
 
-    function appendOffenderBlock(rows, calculated, baseOffenders, title) {
+    function appendOffenderBlock(rows, calculated, baseOffenders, title, mapName) {
       rows.push(`<tr class="section-row"><th>${title}</th>${calculated.map(() => `<td>% e horas</td>`).join('')}</tr>`);
 
       if (!baseOffenders.length) {
@@ -1267,7 +1315,7 @@
       }
       for (const off of baseOffenders) {
         const cells = calculated.map(p => {
-          const map = p.offendersImprodutivo || {};
+          const map = p[mapName] || {};
           const h = map[off.atividade] || 0;
           if (h <= 0) return `<td class="empty-hit">não houve esse apontamento</td>`;
           const pct = p.parado > 0 ? (h / p.parado) * 100 : 0;
@@ -1470,7 +1518,7 @@
       const colW    = W - 0.70;
       const col1X   = 0.35;
 
-      function drawOffenderBlock(slide, x, y, w, h, title, offenders, byFrontMap) {
+      function drawOffenderBlock(slide, x, y, w, h, title, offenders, byFrontMap, mapName) {
         slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h:0.32,
           fill:{ color: C.navy }, rectRadius:0.07, line:{ color: C.navy } });
         slide.addText(title, { x:x+0.1, y, w:w-0.2, h:0.32,
@@ -1512,7 +1560,7 @@
           const isAlert = idx < 3;
           const bg = isAlert ? alertBg[idx] : (idx % 2 === 0 ? C.white : C.lightbg);
           let cx2 = x;
-          const mapLast = calculated[lastPeriodIdx].offendersImprodutivo || {};
+          const mapLast = calculated[lastPeriodIdx][mapName] || {};
           const hLast   = mapLast[off.atividade] || 0;
 
           const fmap     = (byFrontMap || {})[off.atividade] || {};
@@ -1525,7 +1573,7 @@
 
           const cols = [String(idx+1), toTitle(off.atividade),
             ...calculated.map(p => {
-              const map = p.offendersImprodutivo || {};
+              const map = p[mapName] || {};
               const hh  = map[off.atividade] || 0;
               const pct = p.parado > 0 ? (hh/p.parado)*100 : 0;
               return hh > 0 ? `${pct.toFixed(1)}%\n${hh.toFixed(1)}h` : '—';
@@ -1574,12 +1622,23 @@
         }
       }
 
-      const offImprodutivo = (R.baseOffendersImprodutivo || []).slice(0,10);
+      const limit = offenderLimit();
+      const viewLabel = offenderViewLabel();
+      const offImprodutivo = (R.baseOffendersImprodutivo || []).slice(0, limit);
+      const offManutencao  = (R.baseOffendersManutencao || []).slice(0, limit);
       const lastCalc = calculated[calculated.length - 1];
 
-      drawOffenderBlock(s1, col1X, offY, colW, offH,
-        'Top 10 Ofensores Improdutivos — ordenado P4',
-        offImprodutivo, lastCalc.offImprodutivoByFront);
+      const gap   = 0.15;
+      const col2W = (colW - gap) / 2;
+      const col2X2 = col1X + col2W + gap;
+
+      drawOffenderBlock(s1, col1X, offY, col2W, offH,
+        `${viewLabel} — Top ${limit} Ofensores Improdutivos — ordenado P4`,
+        offImprodutivo, lastCalc.offImprodutivoByFront, 'offendersImprodutivo');
+
+      drawOffenderBlock(s1, col2X2, offY, col2W, offH,
+        `${viewLabel} — Top ${limit} Ofensores Manutenção — ordenado P4`,
+        offManutencao, lastCalc.offManutencaoByFront, 'offendersManutencao');
 
       const fname = (frente ? frente.replace(/[^a-z0-9]/gi,'_') : 'Painel') + '_LinhaDoTempo.pptx';
       await pres.writeFile({ fileName: fname });
