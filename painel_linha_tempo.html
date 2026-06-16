@@ -207,7 +207,7 @@
 
     .filters-horizontal {
       display: grid;
-      grid-template-columns: 240px minmax(260px, 1fr) minmax(260px, 1fr);
+      grid-template-columns: 220px minmax(230px, 1fr) minmax(230px, 1fr) minmax(200px, 1fr) minmax(200px, 1fr);
       gap: 12px;
       align-items: start;
     }
@@ -619,6 +619,18 @@
             <span class="label">Descrição do Grupo de Equipamento</span>
             <div id="frontBox" class="multi-box"></div>
           </div>
+
+          <div class="control-card">
+            <h3>Unidade</h3>
+            <span class="label">Descrição da Unidade</span>
+            <div id="unidadeBox" class="multi-box"></div>
+          </div>
+
+          <div class="control-card">
+            <h3>Classe de equipamento</h3>
+            <span class="label">Colhedora / Transbordo / Caminhão</span>
+            <div id="classeBox" class="multi-box"></div>
+          </div>
         </div>
 
         <div class="periods-grid">
@@ -692,8 +704,12 @@
       mode: 'equip',
       selectedEquip: new Set(),
       selectedFront: new Set(),
+      selectedUnidade: new Set(),
+      selectedClasse: new Set(),
       allEquip: [],
       allFront: [],
+      allUnidade: [],
+      allClasse: [],
       minDate: null,
       maxDate: null,
       lastResult: null,
@@ -792,7 +808,7 @@
         while (true) {
           const { data, error } = await state.supabase
             .from(TABLE_NAME)
-            .select('data, hora_inicial, hora_final, frente, equipamento, atividade, classificacao, codigo_operacao')
+            .select('data, hora_inicial, hora_final, frente, equipamento, unidade, atividade, classificacao, codigo_operacao')
             .order('data', { ascending: true })
             .range(from, from + pageSize - 1);
           if (error) throw error;
@@ -812,10 +828,13 @@
           let atividade = normText(r.atividade);
           if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
           if (!classificacao || !atividade || !r.data) continue;
+          const equipamento = (r.equipamento || '').toString().trim();
           rows.push({
             d: r.data,
             f: (r.frente || '').toString().trim(),
-            e: (r.equipamento || '').toString().trim(),
+            e: equipamento,
+            u: (r.unidade || '').toString().trim(),
+            cl: classeFromEquipamento(equipamento),
             c: classificacao,
             cd: (r.codigo_operacao || '').toString().trim(),
             a: atividade,
@@ -831,16 +850,22 @@
         state.minDate = minDate;
         state.maxDate = maxDate;
 
-        const equip = new Set(), front = new Set();
+        const equip = new Set(), front = new Set(), unidade = new Set(), classe = new Set();
         for (const r of rows) {
           if (r.e) equip.add(r.e);
           if (r.f) front.add(r.f);
+          if (r.u) unidade.add(r.u);
+          if (r.cl) classe.add(r.cl);
         }
         state.allEquip = uniqueSorted([...equip]);
         state.allFront = uniqueSorted([...front]);
+        state.allUnidade = uniqueSorted([...unidade]);
+        state.allClasse = uniqueSorted([...classe]);
 
         for (const v of [...state.selectedEquip]) if (!state.allEquip.includes(v)) state.selectedEquip.delete(v);
         for (const v of [...state.selectedFront]) if (!state.allFront.includes(v)) state.selectedFront.delete(v);
+        for (const v of [...state.selectedUnidade]) if (!state.allUnidade.includes(v)) state.selectedUnidade.delete(v);
+        for (const v of [...state.selectedClasse]) if (!state.allClasse.includes(v)) state.selectedClasse.delete(v);
 
         buildFilters();
         if (!silent || !$('p1Start').value) setDefaultPeriods();
@@ -865,6 +890,15 @@
         setStatus(`Erro ao carregar dados do Supabase: ${err.message || err}`, true);
         setProgress(0);
       }
+    }
+
+    function classeFromEquipamento(equipamento) {
+      const t = normText(equipamento);
+      if (t.includes('COLHEDORA')) return 'COLHEDORA';
+      if (t.includes('TRANSBORDO')) return 'TRANSBORDO';
+      if (t.includes('CAMINHA')) return 'CAMINHAO';
+      if (t.includes('TRATOR')) return 'TRATOR';
+      return t || 'OUTROS';
     }
 
     function durationHours(horaInicial, horaFinal) {
@@ -899,6 +933,8 @@
     function buildFilters() {
       createMultiBox('equipBox', state.allEquip, state.selectedEquip, () => { updateFilterSummary(); maybeAutoCalc(); });
       createMultiBox('frontBox', state.allFront, state.selectedFront, () => { updateFilterSummary(); maybeAutoCalc(); });
+      createMultiBox('unidadeBox', state.allUnidade, state.selectedUnidade, () => { updateFilterSummary(); maybeAutoCalc(); });
+      createMultiBox('classeBox', state.allClasse, state.selectedClasse, () => { updateFilterSummary(); maybeAutoCalc(); });
     }
 
     function createMultiBox(id, values, selectedSet, onChange) {
@@ -986,10 +1022,12 @@
     }
 
     function getSelectionText() {
-      if (state.mode === 'equip') {
-        return state.selectedEquip.size ? `${state.selectedEquip.size} equipamento(s)` : 'Todos os equipamentos';
-      }
-      return state.selectedFront.size ? `${state.selectedFront.size} frente(s)` : 'Todas as frentes';
+      const base = state.mode === 'equip'
+        ? (state.selectedEquip.size ? `${state.selectedEquip.size} equipamento(s)` : 'Todos os equipamentos')
+        : (state.selectedFront.size ? `${state.selectedFront.size} frente(s)` : 'Todas as frentes');
+      const unidade = state.selectedUnidade.size ? `${state.selectedUnidade.size} unidade(s)` : 'Todas unidades';
+      const classe = state.selectedClasse.size ? `${state.selectedClasse.size} classe(s)` : 'Todas classes';
+      return `${base} / ${unidade} / ${classe}`;
     }
 
     function periodComplete(prefix) {
@@ -1005,6 +1043,8 @@
     }
 
     function passesGlobalFilters(row, filters) {
+      if (filters.unidade.size > 0 && !filters.unidade.has(String(row.u))) return false;
+      if (filters.classe.size > 0 && !filters.classe.has(String(row.cl))) return false;
       const mode = filters.mode || 'equip';
       if (mode === 'equip') {
         return filters.equip.size === 0 || filters.equip.has(String(row.e));
@@ -1093,6 +1133,8 @@
           mode: state.mode,
           equip: new Set([...state.selectedEquip]),
           front: new Set([...state.selectedFront]),
+          unidade: new Set([...state.selectedUnidade]),
+          classe: new Set([...state.selectedClasse]),
           deslocToggle: $('deslocToggle').checked
         };
         const calculated = periods.map(p => calcPeriod(p, filters));
