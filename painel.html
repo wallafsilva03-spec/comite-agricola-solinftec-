@@ -1371,7 +1371,8 @@
         list.innerHTML = visible.map(v => {
           const safe = escapeHtml(v);
           const checked = selectedSet.has(String(v)) ? 'checked' : '';
-          return `<label class="check-row" title="${safe}"><input type="checkbox" value="${safe}" ${checked} /><span>${safe}</span></label>`;
+          // value usa o texto original (não escapado) para bater com row.f/row.e
+          return `<label class="check-row" title="${safe}"><input type="checkbox" value="${v}" ${checked} /><span>${safe}</span></label>`;
         }).join('') + more;
       };
       search.addEventListener('input', render);
