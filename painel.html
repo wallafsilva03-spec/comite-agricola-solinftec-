@@ -1086,12 +1086,6 @@
       $('connStatus').innerHTML = `<span id="connDot" class="dot ${kind || ''}"></span> ${text}`;
     }
 
-    function applyClassEquipFilter(query) {
-      const ce = state.classEquip;
-      if (!ce || ce === 'TRATOR_TRANS') return query; // TRATOR_TRANS é filtrado client-side
-      return query.ilike('modelo', `%${ce}%`);
-    }
-
     function applyClassEquipClientSide(rows) {
       const ce = state.classEquip;
       if (!ce) return rows;
@@ -1230,7 +1224,6 @@
           .lte('data', maxDate)
           .order('data', { ascending: true })
           .range(from, from + pageSize - 1);
-        query = applyClassEquipFilter(query);
         if (filters.mode === 'equip' && filters.equip.size > 0) {
           query = query.in('equipamento', [...filters.equip]);
         } else if (filters.mode === 'front' && filters.front.size > 0) {
@@ -1243,6 +1236,7 @@
         if (!data || data.length < pageSize) break;
         from += pageSize;
       }
+      // Filtro de classificação de equipamento (client-side)
       all = applyClassEquipClientSide(all);
       const rows = [];
       for (const r of all) {
