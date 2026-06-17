@@ -1150,8 +1150,7 @@
 
         state.metaRows = metaRows;
         state.rows = [];
-        // Conta total separadamente para exibir
-        state.rowCount = (frenteRes.data || []).length + (equipRes.data || []).length;
+        state.rowCount = frentesAll.length + equipAll.length;
         state.rowsLoaded = !!maxDate;
         state.minDate = minDate;
         state.maxDate = maxDate;
