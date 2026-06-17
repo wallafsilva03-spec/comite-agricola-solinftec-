@@ -576,6 +576,149 @@
       .top-actions { justify-content: stretch; }
       .action-btn { width: 100%; }
     }
+
+    /* ── Tabs ── */
+    .tabs-nav {
+      display: flex;
+      gap: 0;
+      padding: 14px 0 0 0;
+      border-bottom: 2px solid var(--line);
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      padding: 10px 28px;
+      border: 2px solid var(--line);
+      border-bottom: 0;
+      border-radius: 12px 12px 0 0;
+      background: #f0f5f8;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      color: var(--muted);
+      margin-right: 4px;
+      position: relative;
+      bottom: -2px;
+      transition: background .15s, color .15s;
+    }
+    .tab-btn.active {
+      background: var(--card);
+      color: var(--primary-dark);
+      border-bottom: 2px solid var(--card);
+    }
+
+    /* ── Matriz ── */
+    .matriz-config {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .matriz-config-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #f9fbfd;
+    }
+    .matriz-config-card h4 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--primary-dark);
+      font-weight: 900;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .meta-card {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f9fbfd;
+    }
+    .meta-card > label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meta-sub-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4px;
+    }
+    .meta-sub-grid small {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .meta-sub-grid input[type=number] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      outline: none;
+    }
+    .matriz-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      margin-top: 16px;
+    }
+    .mtz {
+      border-collapse: collapse;
+      min-width: 860px;
+      width: 100%;
+      font-size: 13px;
+    }
+    .mtz th, .mtz td {
+      border: 1px solid #c8d4dd;
+      padding: 7px 9px;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .mtz thead th { background: #063f58; color: #fff; font-weight: 900; font-size: 12px; }
+    .mtz .mtz-sec td, .mtz .mtz-sec th {
+      background: #cee3ef; color: #1a3a50; font-weight: 900; text-align: left; font-size: 12px;
+    }
+    .mtz .mtz-subsec td {
+      background: #deeef6; color: #1a3a50; font-weight: 900; text-align: left;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .3px;
+    }
+    .mtz .mtz-metric th {
+      background: #fff; color: #233044; font-weight: 900; text-align: left; min-width: 210px;
+    }
+    .mtz .mtz-metric td { font-weight: 700; background: #fff; }
+    .mtz .mtz-metric:nth-child(even) th, .mtz .mtz-metric:nth-child(even) td { background: #f7fbfd; }
+    .mtz .mtz-offsec td {
+      background: #fff3cd; color: #5c4000; font-weight: 900; text-align: left; padding: 8px 12px;
+    }
+    .mtz .mtz-offrow th {
+      background: #fff; color: #233044; font-weight: 700; text-align: left; min-width: 200px; font-size: 12px;
+    }
+    .mtz .mtz-offrow td { background: #fff; font-weight: 700; }
+    .mtz .mtz-offrow:nth-child(even) th, .mtz .mtz-offrow:nth-child(even) td { background: #f7fbfd; }
+    .sc {
+      display: inline-block; width: 13px; height: 13px; border-radius: 50%;
+      vertical-align: middle; margin-left: 5px;
+    }
+    .sc.g { background: #22c55e; }
+    .sc.r { background: #ef4444; }
+    .vn { color: #b42318; font-weight: 900; }
+    .vp { color: #087443; font-weight: 900; }
+    @media (max-width: 1250px) { .matriz-config { grid-template-columns: 1fr 1fr; } .meta-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 760px) { .matriz-config { grid-template-columns: 1fr; } .meta-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -607,6 +750,12 @@
       </div>
     </header>
 
+    <div class="tabs-nav">
+      <button id="tabBtnComparativo" class="tab-btn active" type="button">Comparativo</button>
+      <button id="tabBtnMatriz" class="tab-btn" type="button">Matriz</button>
+    </div>
+
+    <div id="tabComparativo">
     <section id="filtersPanel" class="panel">
       <div id="filtersHeader" class="panel-head filter-head" title="Clique para abrir ou recolher os filtros">
         <h2 class="panel-title"><span class="chevron">▾</span> Filtros gerais</h2>
@@ -723,7 +872,109 @@
         </div>
       </div>
     </section>
-  </div>
+    </div><!-- /tabComparativo -->
+
+    <div id="tabMatriz" class="hidden">
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Matriz RDO</h2>
+          <div class="top-actions">
+            <button id="calcMatrizBtn" class="action-btn primary" type="button">Calcular Matriz</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="matriz-config">
+            <div class="matriz-config-card">
+              <h4>Período Anterior</h4>
+              <div class="date-row">
+                <div class="date-field"><label>Início</label><input id="mpAntStart" type="date" /></div>
+                <div class="date-field"><label>Fim</label><input id="mpAntEnd" type="date" /></div>
+              </div>
+            </div>
+            <div class="matriz-config-card">
+              <h4>Período Atual</h4>
+              <div class="date-row">
+                <div class="date-field"><label>Início</label><input id="mpAtuStart" type="date" /></div>
+                <div class="date-field"><label>Fim</label><input id="mpAtuEnd" type="date" /></div>
+              </div>
+            </div>
+            <div class="matriz-config-card">
+              <h4>Mês Fechado</h4>
+              <div class="date-field" style="margin-bottom:8px">
+                <label>Label (ex: Maio)</label>
+                <input id="mpMesLabel" type="text" placeholder="Maio" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:9px;font-size:13px;outline:none" />
+              </div>
+              <div class="date-row">
+                <div class="date-field"><label>Início</label><input id="mpMesStart" type="date" /></div>
+                <div class="date-field"><label>Fim</label><input id="mpMesEnd" type="date" /></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
+            <div class="date-field" style="flex:1;min-width:180px">
+              <label>Nome RDO</label>
+              <input id="mpRdoName" type="text" placeholder="ex: COPLASA" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:9px;font-size:14px;font-weight:700;color:var(--ink);outline:none" />
+            </div>
+            <div class="date-field" style="flex:1;min-width:180px">
+              <label>Operação</label>
+              <input id="mpOperacao" type="text" placeholder="ex: Preparo de Solo" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:9px;font-size:14px;font-weight:700;color:var(--ink);outline:none" />
+            </div>
+            <div class="date-field" style="flex:1;min-width:180px">
+              <label>Classificação do Equipamento</label>
+              <select id="mpClassificacao" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:9px;font-size:14px;color:var(--ink);outline:none;background:#fff">
+                <option value="">Todos os equipamentos</option>
+                <option value="COLHEDORA">Colhedora</option>
+                <option value="TRATOR">Trator</option>
+                <option value="TRANSBORDO">Transbordo</option>
+                <option value="CAMINHAO">Caminhão</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">Metas por métrica (%)</div>
+          <div class="meta-grid">
+            <div class="meta-card">
+              <label>% Eficiência Operacional</label>
+              <div class="meta-sub-grid">
+                <div><small>P.Anterior</small><input id="metaEficAnt" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>P.Atual</small><input id="metaEficAtu" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>Mês Fech.</small><input id="metaEficMes" type="number" step="0.01" placeholder="0" /></div>
+              </div>
+            </div>
+            <div class="meta-card">
+              <label>% Produtivo</label>
+              <div class="meta-sub-grid">
+                <div><small>P.Anterior</small><input id="metaProdAnt" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>P.Atual</small><input id="metaProdAtu" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>Mês Fech.</small><input id="metaProdMes" type="number" step="0.01" placeholder="0" /></div>
+              </div>
+            </div>
+            <div class="meta-card">
+              <label>% Improdutivo</label>
+              <div class="meta-sub-grid">
+                <div><small>P.Anterior</small><input id="metaImpAnt" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>P.Atual</small><input id="metaImpAtu" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>Mês Fech.</small><input id="metaImpMes" type="number" step="0.01" placeholder="0" /></div>
+              </div>
+            </div>
+            <div class="meta-card">
+              <label>% Utilização</label>
+              <div class="meta-sub-grid">
+                <div><small>P.Anterior</small><input id="metaUtilAnt" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>P.Atual</small><input id="metaUtilAtu" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>Mês Fech.</small><input id="metaUtilMes" type="number" step="0.01" placeholder="0" /></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="matrizStatus" class="notice warn">Conecte ao Supabase, configure os períodos e clique em Calcular Matriz.</div>
+          <div id="matrizResult"></div>
+        </div>
+      </section>
+    </div><!-- /tabMatriz -->
+
+  </div><!-- /app (moved here) -->
 
   <script>
     const TABLE_NAME = 'apontamentos';
@@ -773,6 +1024,16 @@
       $('exportCsvBtn').addEventListener('click', exportCsv);
       $('exportPptxBtn').addEventListener('click', exportPptx);
       $('copyP4Btn').addEventListener('click', copyPeriod4ToAll);
+      $('tabBtnComparativo').addEventListener('click', () => switchTab('comparativo'));
+      $('tabBtnMatriz').addEventListener('click', () => switchTab('matriz'));
+      $('calcMatrizBtn').addEventListener('click', calcMatriz);
+      // Persist Matriz form state on change
+      ['mpAntStart','mpAntEnd','mpAtuStart','mpAtuEnd','mpMesStart','mpMesEnd','mpMesLabel',
+       'mpRdoName','mpOperacao','mpClassificacao',
+       'metaEficAnt','metaEficAtu','metaEficMes','metaProdAnt','metaProdAtu','metaProdMes',
+       'metaImpAnt','metaImpAtu','metaImpMes','metaUtilAnt','metaUtilAtu','metaUtilMes'
+      ].forEach(id => { const el = $(id); if (el) el.addEventListener('change', saveMatrizState); });
+      loadMatrizState();
       $('saveFiltersBtn').addEventListener('click', (ev) => {
         ev.stopPropagation();
         updateFilterSummary();
@@ -833,20 +1094,30 @@
       setProgress(10);
       try {
         const pageSize = 1000;
-        let from = 0;
+        // Get total count first so we can fetch all pages in parallel
+        const { count, error: countErr } = await state.supabase
+          .from(TABLE_NAME)
+          .select('*', { count: 'exact', head: true });
+        if (countErr) throw countErr;
+        setProgress(20);
+        const numPages = count > 0 ? Math.ceil(count / pageSize) : 1;
+        const pagePromises = [];
+        for (let i = 0; i < numPages; i++) {
+          pagePromises.push(
+            state.supabase
+              .from(TABLE_NAME)
+              .select('data, frente, equipamento, modelo')
+              .order('data', { ascending: true })
+              .range(i * pageSize, (i + 1) * pageSize - 1)
+          );
+        }
+        const pageResults = await Promise.all(pagePromises);
         let all = [];
-        while (true) {
-          const { data, error } = await state.supabase
-            .from(TABLE_NAME)
-            .select('data, frente, equipamento, modelo')
-            .order('data', { ascending: true })
-            .range(from, from + pageSize - 1);
+        for (const { data, error } of pageResults) {
           if (error) throw error;
           all = all.concat(data || []);
-          setProgress(10 + Math.min(80, all.length / 50));
-          if (!data || data.length < pageSize) break;
-          from += pageSize;
         }
+        setProgress(75);
 
         const metaRows = [];
         let minDate = null;
@@ -913,28 +1184,44 @@
       const minDate = allStarts[0];
       const maxDate = allEnds[allEnds.length - 1];
       const pageSize = 1000;
-      let from = 0;
-      let all = [];
-      while (true) {
+      // Get count for this filtered range first, then fetch in parallel
+      let countQuery = state.supabase
+        .from(TABLE_NAME)
+        .select('*', { count: 'exact', head: true })
+        .gte('data', minDate)
+        .lte('data', maxDate);
+      if (filters.mode === 'equip' && filters.equip.size > 0) {
+        countQuery = countQuery.in('equipamento', [...filters.equip]);
+      } else if (filters.mode === 'front' && filters.front.size > 0) {
+        countQuery = countQuery.in('frente', [...filters.front]);
+      }
+      const { count, error: countErr } = await countQuery;
+      if (countErr) throw countErr;
+      setProgress(20);
+      const numPages = count > 0 ? Math.ceil(count / pageSize) : 1;
+      const pagePromises = [];
+      for (let i = 0; i < numPages; i++) {
         let query = state.supabase
           .from(TABLE_NAME)
           .select('data, frente, equipamento, modelo, classificacao_ativ, cd_atividade, atividade, tempo_decimal')
           .gte('data', minDate)
           .lte('data', maxDate)
           .order('data', { ascending: true })
-          .range(from, from + pageSize - 1);
+          .range(i * pageSize, (i + 1) * pageSize - 1);
         if (filters.mode === 'equip' && filters.equip.size > 0) {
           query = query.in('equipamento', [...filters.equip]);
         } else if (filters.mode === 'front' && filters.front.size > 0) {
           query = query.in('frente', [...filters.front]);
         }
-        const { data, error } = await query;
+        pagePromises.push(query);
+      }
+      const pageResults = await Promise.all(pagePromises);
+      let all = [];
+      for (const { data, error } of pageResults) {
         if (error) throw error;
         all = all.concat(data || []);
-        setProgress(10 + Math.min(75, Math.floor(all.length / 200)));
-        if (!data || data.length < pageSize) break;
-        from += pageSize;
       }
+      setProgress(75);
       const rows = [];
       for (const r of all) {
         const horas = Number(r.tempo_decimal);
@@ -1451,6 +1738,216 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    // ─── TAB NAVIGATION ─────────────────────────────────────────────────────
+    function switchTab(tab) {
+      $('tabComparativo').classList.toggle('hidden', tab !== 'comparativo');
+      $('tabMatriz').classList.toggle('hidden', tab !== 'matriz');
+      $('tabBtnComparativo').classList.toggle('active', tab === 'comparativo');
+      $('tabBtnMatriz').classList.toggle('active', tab === 'matriz');
+    }
+
+    // ─── EQUIPMENT CLASSIFICATION ────────────────────────────────────────────
+    function classifyEquip(modelo) {
+      const t = normText(modelo || '');
+      if (t.includes('COLHEDORA') || t.includes('COLHEDOR')) return 'COLHEDORA';
+      if (t.includes('TRANSBORDO')) return 'TRANSBORDO';
+      if (t.includes('CAMINHAO') || t.includes('CAMINHA')) return 'CAMINHAO';
+      if (t.includes('TRATOR')) return 'TRATOR';
+      return 'OUTROS';
+    }
+
+    // ─── MATRIZ STATE ─────────────────────────────────────────────────────────
+    const MATRIZ_FIELDS = [
+      'mpAntStart','mpAntEnd','mpAtuStart','mpAtuEnd','mpMesStart','mpMesEnd','mpMesLabel',
+      'mpRdoName','mpOperacao','mpClassificacao',
+      'metaEficAnt','metaEficAtu','metaEficMes',
+      'metaProdAnt','metaProdAtu','metaProdMes',
+      'metaImpAnt','metaImpAtu','metaImpMes',
+      'metaUtilAnt','metaUtilAtu','metaUtilMes'
+    ];
+
+    function saveMatrizState() {
+      const s = {};
+      for (const id of MATRIZ_FIELDS) { const el = $(id); if (el) s[id] = el.value; }
+      localStorage.setItem('painel_matriz_state', JSON.stringify(s));
+    }
+
+    function loadMatrizState() {
+      try {
+        const s = JSON.parse(localStorage.getItem('painel_matriz_state') || '{}');
+        for (const [id, val] of Object.entries(s)) { const el = $(id); if (el) el.value = val; }
+      } catch (_) {}
+    }
+
+    // ─── MATRIZ CALCULATION ──────────────────────────────────────────────────
+    async function calcMatriz() {
+      if (!state.rowsLoaded) {
+        setMatrizStatus('Conecte e carregue os dados do Supabase primeiro.', true); return;
+      }
+      const antStart = $('mpAntStart').value, antEnd = $('mpAntEnd').value;
+      const atuStart = $('mpAtuStart').value, atuEnd = $('mpAtuEnd').value;
+      const mesStart = $('mpMesStart').value, mesEnd = $('mpMesEnd').value;
+      if (!antStart || !antEnd || !atuStart || !atuEnd || !mesStart || !mesEnd) {
+        setMatrizStatus('Preencha todas as datas dos três períodos.', true); return;
+      }
+      saveMatrizState();
+      setMatrizStatus('Buscando dados...', false);
+      setProgress(10);
+      try {
+        const periods = [
+          { start: antStart, end: antEnd },
+          { start: atuStart, end: atuEnd },
+          { start: mesStart, end: mesEnd }
+        ];
+        const filters = {
+          mode: state.mode,
+          equip: new Set([...state.selectedEquip]),
+          front: new Set([...state.selectedFront]),
+          model: new Set([...state.selectedModel]),
+          deslocToggle: $('deslocToggle').checked
+        };
+        const calcRows = await fetchRowsForCalc(periods, filters);
+        const classFiltro = $('mpClassificacao').value;
+        const rows = classFiltro ? calcRows.filter(r => classifyEquip(r.m) === classFiltro) : calcRows;
+        if (!rows.length) {
+          setMatrizStatus('Nenhum dado encontrado para os filtros selecionados.', true); return;
+        }
+        const [resAnt, resAtu, resMes] = periods.map(p => calcPeriod(rows, p, filters));
+        const metas = {
+          efic: [parseFloat($('metaEficAnt').value)||0, parseFloat($('metaEficAtu').value)||0, parseFloat($('metaEficMes').value)||0],
+          prod: [parseFloat($('metaProdAnt').value)||0, parseFloat($('metaProdAtu').value)||0, parseFloat($('metaProdMes').value)||0],
+          imp:  [parseFloat($('metaImpAnt').value)||0,  parseFloat($('metaImpAtu').value)||0,  parseFloat($('metaImpMes').value)||0],
+          util: [parseFloat($('metaUtilAnt').value)||0, parseFloat($('metaUtilAtu').value)||0, parseFloat($('metaUtilMes').value)||0],
+        };
+        setProgress(90);
+        renderMatriz(resAnt, resAtu, resMes, metas, periods);
+        setProgress(100);
+        setTimeout(() => setProgress(0), 400);
+        setMatrizStatus('Matriz calculada com sucesso.', false);
+      } catch (err) {
+        console.error(err);
+        setMatrizStatus(`Erro: ${err.message || err}`, true);
+        setProgress(0);
+      }
+    }
+
+    function setMatrizStatus(msg, warn) {
+      const box = $('matrizStatus');
+      box.textContent = msg;
+      box.className = 'notice ' + (warn ? 'warn' : 'ok');
+    }
+
+    function renderMatriz(resAnt, resAtu, resMes, metas, periods) {
+      const rdoName  = ($('mpRdoName').value  || 'RDO').trim();
+      const operacao = ($('mpOperacao').value || 'Operação').trim();
+      const mesLabel = ($('mpMesLabel').value || 'Mês Fechado').trim();
+      const antLabel = `${formatDateBr(periods[0].start)} a ${formatDateBr(periods[0].end)}`;
+      const atuLabel = `${formatDateBr(periods[1].start)} a ${formatDateBr(periods[1].end)}`;
+      const results  = [resAnt, resAtu, resMes];
+
+      function sc(real, meta, isImprod) {
+        if (!meta) return '';
+        const ok = isImprod ? real <= meta : real >= meta;
+        return `<span class="sc ${ok ? 'g' : 'r'}"></span>`;
+      }
+
+      function varCell(ant, atu, invertGood) {
+        const delta = ant ? ((atu - ant) / Math.abs(ant)) * 100 : null;
+        if (delta === null) return '<td>—</td>';
+        const good = invertGood ? delta <= 0 : delta >= 0;
+        const sign = delta >= 0 ? '+' : '';
+        return `<td class="${good ? 'vp' : 'vn'}">${sign}${delta.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%</td>`;
+      }
+
+      const metricDefs = [
+        { label:'% Eficiência Operacional', key:'eficiencia',    mk:'efic', inv:false },
+        { label:'% Produtivo',              key:'pctProd',       mk:'prod', inv:false },
+        { label:'% Improdutivo',            key:'pctImprod',     mk:'imp',  inv:true  },
+        { label:'% Utilização',             key:'pctDisponivel', mk:'util', inv:false },
+      ];
+
+      let rows = '';
+      for (const m of metricDefs) {
+        const vals = results.map(r => r[m.key]);
+        const mt   = metas[m.mk];
+        rows += `<tr class="mtz-metric">
+          <th>${escapeHtml(m.label)}</th>
+          <td></td>
+          <td>${fmtPct(mt[0])}</td>
+          <td>${fmtPct(vals[0])} ${sc(vals[0], mt[0], m.inv)}</td>
+          <td>${fmtPct(mt[1])}</td>
+          <td>${fmtPct(vals[1])} ${sc(vals[1], mt[1], m.inv)}</td>
+          ${varCell(vals[0], vals[1], m.inv)}
+          <td>${fmtPct(mt[2])}</td>
+          <td>${fmtPct(vals[2])} ${sc(vals[2], mt[2], m.inv)}</td>
+        </tr>`;
+      }
+
+      function offRow(off, rank, mapName) {
+        function cell(r) {
+          const h = (r[mapName] || {})[off.atividade] || 0;
+          if (!h) return `<td style="color:var(--muted);font-style:italic">—</td>`;
+          const pct = r.parado > 0 ? (h / r.parado) * 100 : 0;
+          return `<td>${fmtPct(pct)} / ${fmtHours(h)}</td>`;
+        }
+        const hAnt = (resAnt[mapName] || {})[off.atividade] || 0;
+        const hAtu = (resAtu[mapName] || {})[off.atividade] || 0;
+        const pAnt = resAnt.parado > 0 ? (hAnt / resAnt.parado) * 100 : 0;
+        const pAtu = resAtu.parado > 0 ? (hAtu / resAtu.parado) * 100 : 0;
+        const delta = hAnt > 0 ? ((pAtu - pAnt) / Math.abs(pAnt)) * 100 : null;
+        const deltaHtml = delta !== null
+          ? `<span class="${delta <= 0 ? 'vp' : 'vn'}">${delta >= 0 ? '+' : ''}${delta.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%</span>`
+          : '—';
+        return `<tr class="mtz-offrow">
+          <th>${rank}º (%/h) – ${escapeHtml(operacao)}</th>
+          <td style="text-align:left;font-weight:700">${escapeHtml(toTitle(off.atividade))}</td>
+          <td></td>${cell(resAnt)}<td></td>${cell(resAtu)}
+          <td>${deltaHtml}</td>
+          <td></td>${cell(resMes)}
+        </tr>`;
+      }
+
+      const top5Gen  = resAtu.offenderNoMaintenanceList.slice(0, 5);
+      const top5Mant = resAtu.offenderMaintenanceList.slice(0, 5);
+
+      let offGenRows = top5Gen.map((off, i) => offRow(off, i + 1, 'offendersNoMaintenance')).join('');
+      if (!offGenRows) offGenRows = `<tr><td colspan="9" style="color:var(--muted);font-style:italic;padding:10px">Nenhum ofensor operacional encontrado.</td></tr>`;
+
+      let offMantRows = top5Mant.map((off, i) => offRow(off, i + 1, 'offendersMaintenance')).join('');
+      if (!offMantRows) offMantRows = `<tr><td colspan="9" style="color:var(--muted);font-style:italic;padding:10px">Nenhum ofensor de manutenção encontrado.</td></tr>`;
+
+      $('matrizResult').innerHTML = `
+      <div class="matriz-wrap">
+        <table class="mtz">
+          <thead>
+            <tr>
+              <th rowspan="2" style="min-width:200px;background:#063f58">${escapeHtml(rdoName)}</th>
+              <th rowspan="2" style="min-width:150px;background:#063f58">Ofensor</th>
+              <th colspan="2" style="background:#0b5d7c">Período Anterior<br><span style="font-size:10px;font-weight:600;opacity:.9">${antLabel}</span></th>
+              <th colspan="2" style="background:#0b5d7c">Período Atual<br><span style="font-size:10px;font-weight:600;opacity:.9">${atuLabel}</span></th>
+              <th style="background:#083d5a">Variação<br>Período</th>
+              <th colspan="2" style="background:#0b5d7c">Mês Fechado<br><span style="font-size:10px;font-weight:600;opacity:.9">${escapeHtml(mesLabel)}</span></th>
+            </tr>
+            <tr>
+              <th style="background:#1a6a8c">Meta</th><th style="background:#1a6a8c">Realizado</th>
+              <th style="background:#1a6a8c">Meta</th><th style="background:#1a6a8c">Realizado</th>
+              <th style="background:#0e4f6e">%_Δ</th>
+              <th style="background:#1a6a8c">Meta</th><th style="background:#1a6a8c">Realizado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="mtz-sec"><td colspan="9">${escapeHtml(operacao)}</td></tr>
+            <tr class="mtz-subsec"><td colspan="9">${escapeHtml(operacao.toUpperCase())}</td></tr>
+            ${rows}
+            <tr class="mtz-offsec"><td colspan="9">Ofensor Operação</td></tr>
+            ${offGenRows}
+            <tr class="mtz-offsec"><td colspan="9">Ofensor Manutenção</td></tr>
+            ${offMantRows}
+          </tbody>
+        </table>
+      </div>`;
     }
 
     // ─── EXPORTAR POWERPOINT ────────────────────────────────────────────────
