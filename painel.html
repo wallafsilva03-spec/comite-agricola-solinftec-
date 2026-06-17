@@ -769,15 +769,6 @@
         <div class="filters-horizontal">
           <div class="control-card">
             <h3>Tipo de análise</h3>
-            <span class="label">Tipo de equipamento</span>
-            <div class="segmented" role="group" style="flex-wrap:wrap;gap:4px">
-              <button id="ceAll"   class="active" type="button" data-ce="">Todos</button>
-              <button id="ceComb"  class="ce-btn"  type="button" data-ce="COLHED">Colhedora</button>
-              <button id="ceTrat"  class="ce-btn"  type="button" data-ce="TRATOR_TRANS">Trator / Transbordo</button>
-              <button id="ceCam"   class="ce-btn"  type="button" data-ce="CAMINHA">Caminhão</button>
-            </div>
-            <span class="hint">Selecionar um tipo reduz drasticamente o volume de dados buscados.</span>
-
             <span class="label" style="margin-top:10px">Filtro de exibição</span>
             <div class="segmented" role="group">
               <button id="modeEquip" class="active" type="button">Frota</button>
@@ -1005,7 +996,7 @@
       calcSeq: 0,
       supabase: null,
       channel: null,
-      classEquip: ''
+      classEquip: '' /* unused, mantido para compatibilidade de cache-key */
     };
 
     const $ = (id) => document.getElementById(id);
@@ -1026,23 +1017,8 @@
       });
       $('refreshBtn').addEventListener('click', () => loadDataFromSupabase());
       // Tipo de equipamento — filtro visual (client-side)
-      document.querySelectorAll('[data-ce]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          state.classEquip = btn.dataset.ce;
-          localStorage.setItem('painel_class_equip', btn.dataset.ce);
-          document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          updateFilterSummary();
-          maybeAutoCalc();
-        });
-      });
-      // Restaura seleção do localStorage (limpa valores inválidos de versões antigas)
-      const validCeValues = ['', 'COLHED', 'TRATOR_TRANS', 'CAMINHA'];
-      let savedCe = localStorage.getItem('painel_class_equip') || '';
-      if (!validCeValues.includes(savedCe)) { savedCe = ''; localStorage.removeItem('painel_class_equip'); }
-      state.classEquip = savedCe;
-      const ceBtn = document.querySelector(`[data-ce="${savedCe}"]`);
-      if (ceBtn) { document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active')); ceBtn.classList.add('active'); }
+      localStorage.removeItem('painel_class_equip');
+      state.classEquip = '';
       $('modeEquip').addEventListener('click', () => setMode('equip'));
       $('modeFront').addEventListener('click', () => setMode('front'));
       $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
@@ -1243,7 +1219,7 @@
         setProgress(70);
       }
       // Filtro de tipo (Trator/Colhedora/...) é barato — aplicado fora do cache
-      return applyClassEquipClientSide(baseRows);
+      return baseRows;
     }
 
     // Busca os dados e normaliza para {d,f,e,m,c,cd,a,h}.
@@ -1440,9 +1416,7 @@
     }
 
     function updateFilterSummary() {
-      const ceMap = { '':'Todos os equip.', 'COLHED':'Colhedora', 'TRATOR_TRANS':'Trator/Transbordo', 'CAMINHA':'Caminhão' };
-      const ceLabel = ceMap[state.classEquip] || state.classEquip;
-      $('filterSummary').textContent = `[${ceLabel}] ` + getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
+      $('filterSummary').textContent = getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
     }
 
     function getSelectionText() {
