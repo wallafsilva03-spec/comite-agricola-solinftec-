@@ -1094,30 +1094,20 @@
       setProgress(10);
       try {
         const pageSize = 1000;
-        // Get total count first so we can fetch all pages in parallel
-        const { count, error: countErr } = await state.supabase
-          .from(TABLE_NAME)
-          .select('*', { count: 'exact', head: true });
-        if (countErr) throw countErr;
-        setProgress(20);
-        const numPages = count > 0 ? Math.ceil(count / pageSize) : 1;
-        const pagePromises = [];
-        for (let i = 0; i < numPages; i++) {
-          pagePromises.push(
-            state.supabase
-              .from(TABLE_NAME)
-              .select('data, frente, equipamento, modelo')
-              .order('data', { ascending: true })
-              .range(i * pageSize, (i + 1) * pageSize - 1)
-          );
-        }
-        const pageResults = await Promise.all(pagePromises);
+        let from = 0;
         let all = [];
-        for (const { data, error } of pageResults) {
+        while (true) {
+          const { data, error } = await state.supabase
+            .from(TABLE_NAME)
+            .select('data, frente, equipamento, modelo')
+            .order('data', { ascending: true })
+            .range(from, from + pageSize - 1);
           if (error) throw error;
           all = all.concat(data || []);
+          setProgress(10 + Math.min(80, all.length / 50));
+          if (!data || data.length < pageSize) break;
+          from += pageSize;
         }
-        setProgress(75);
 
         const metaRows = [];
         let minDate = null;
@@ -1184,44 +1174,28 @@
       const minDate = allStarts[0];
       const maxDate = allEnds[allEnds.length - 1];
       const pageSize = 1000;
-      // Get count for this filtered range first, then fetch in parallel
-      let countQuery = state.supabase
-        .from(TABLE_NAME)
-        .select('*', { count: 'exact', head: true })
-        .gte('data', minDate)
-        .lte('data', maxDate);
-      if (filters.mode === 'equip' && filters.equip.size > 0) {
-        countQuery = countQuery.in('equipamento', [...filters.equip]);
-      } else if (filters.mode === 'front' && filters.front.size > 0) {
-        countQuery = countQuery.in('frente', [...filters.front]);
-      }
-      const { count, error: countErr } = await countQuery;
-      if (countErr) throw countErr;
-      setProgress(20);
-      const numPages = count > 0 ? Math.ceil(count / pageSize) : 1;
-      const pagePromises = [];
-      for (let i = 0; i < numPages; i++) {
+      let from = 0;
+      let all = [];
+      while (true) {
         let query = state.supabase
           .from(TABLE_NAME)
           .select('data, frente, equipamento, modelo, classificacao_ativ, cd_atividade, atividade, tempo_decimal')
           .gte('data', minDate)
           .lte('data', maxDate)
           .order('data', { ascending: true })
-          .range(i * pageSize, (i + 1) * pageSize - 1);
+          .range(from, from + pageSize - 1);
         if (filters.mode === 'equip' && filters.equip.size > 0) {
           query = query.in('equipamento', [...filters.equip]);
         } else if (filters.mode === 'front' && filters.front.size > 0) {
           query = query.in('frente', [...filters.front]);
         }
-        pagePromises.push(query);
-      }
-      const pageResults = await Promise.all(pagePromises);
-      let all = [];
-      for (const { data, error } of pageResults) {
+        const { data, error } = await query;
         if (error) throw error;
         all = all.concat(data || []);
+        setProgress(10 + Math.min(75, Math.floor(all.length / 200)));
+        if (!data || data.length < pageSize) break;
+        from += pageSize;
       }
-      setProgress(75);
       const rows = [];
       for (const r of all) {
         const horas = Number(r.tempo_decimal);
