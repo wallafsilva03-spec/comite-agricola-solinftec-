@@ -1120,59 +1120,37 @@
       setProgress(10);
       clearFetchCache();
       try {
-        // Busca os 5000 registros mais recentes para popular filtros (query simples e rápida)
-        const { data: metaSample, error: metaErr } = await state.supabase
-          .from(TABLE_NAME)
-          .select('data, frente, equipamento')
-          .order('data', { ascending: false })
-          .limit(5000);
-        if (metaErr) throw metaErr;
-        const all = metaSample || [];
-        const truncated = all.length >= 5000;
+        // Busca em paralelo: datas (amostra recente) + todos os valores distintos de frente e equipamento
+        const [dateRes, frenteRes, equipRes] = await Promise.all([
+          state.supabase.from(TABLE_NAME).select('data').order('data', { ascending: false }).limit(1),
+          state.supabase.from(TABLE_NAME).select('frente').not('frente', 'is', null).neq('frente', '').limit(5000),
+          state.supabase.from(TABLE_NAME).select('equipamento').not('equipamento', 'is', null).neq('equipamento', '').limit(5000)
+        ]);
+        if (dateRes.error) throw dateRes.error;
 
-        const metaRows = [];
-        let minDate = null;
-        let maxDate = null;
-        for (const r of all) {
-          if (!r.data) continue;
-          metaRows.push({
-            d: r.data,
-            f: (r.frente || '').toString().trim(),
-            e: (r.equipamento || '').toString().trim(),
-            m: (r.equipamento || '').toString().trim(),
-          });
-          if (!minDate || r.data < minDate) minDate = r.data;
-          if (!maxDate || r.data > maxDate) maxDate = r.data;
-        }
-        // Se truncou, busca a data mais antiga separadamente
-        if (truncated) {
-          const { data: oldest } = await state.supabase
-            .from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1);
-          if (oldest && oldest[0]) minDate = oldest[0].data;
-        }
+        const { data: oldest } = await state.supabase
+          .from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1);
+
+        const maxDate = dateRes.data?.[0]?.data || null;
+        const minDate = oldest?.data?.[0]?.data || maxDate;
+        const all = []; // mantido para compatibilidade de rowCount
+        const truncated = false;
+
+        const metaRows = maxDate ? [{ d: maxDate, f: '', e: '', m: '' }] : [];
 
         state.metaRows = metaRows;
         state.rows = [];
-        state.rowCount = metaRows.length;
-        state.rowsLoaded = metaRows.length > 0;
+        // Conta total separadamente para exibir
+        state.rowCount = (frenteRes.data || []).length + (equipRes.data || []).length;
+        state.rowsLoaded = !!maxDate;
         state.minDate = minDate;
         state.maxDate = maxDate;
 
-        const equip = new Set(), front = new Set(), model = new Set();
-        for (const r of metaRows) {
-          if (r.e) equip.add(r.e);
-          if (r.f) front.add(r.f);
-          if (r.m) model.add(r.m);
-        }
-        state.allEquip = uniqueSorted([...equip]);
-        state.allFront = uniqueSorted([...front]);
-        state.allModel = uniqueSorted([...model]);
+        state.allFront = uniqueSorted([...new Set((frenteRes.data || []).map(r => (r.frente || '').trim()).filter(Boolean))]);
+        state.allEquip = uniqueSorted([...new Set((equipRes.data || []).map(r => (r.equipamento || '').trim()).filter(Boolean))]);
+        state.allModel = state.allEquip;
         console.log('[DIAG META] frentes encontradas:', state.allFront.length, state.allFront.slice(0,5));
         console.log('[DIAG META] equipamentos encontrados:', state.allEquip.length, state.allEquip.slice(0,3));
-
-        for (const v of [...state.selectedEquip]) if (!state.allEquip.includes(v)) state.selectedEquip.delete(v);
-        for (const v of [...state.selectedFront]) if (!state.allFront.includes(v)) state.selectedFront.delete(v);
-        for (const v of [...state.selectedModel]) if (!state.allModel.includes(v)) state.selectedModel.delete(v);
 
         buildFilters();
         if (!silent || !$('p1Start').value) setDefaultPeriods();
@@ -1180,16 +1158,15 @@
         setProgress(100);
         setTimeout(() => setProgress(0), 700);
         setConnStatus('Conectado', 'ok');
-        const truncNote = truncated ? ' (amostra — tabela maior)' : '';
-        $('fileMeta').textContent = `Tabela "${TABLE_NAME}" — ${state.rowCount.toLocaleString('pt-BR')} registros carregados${truncNote}.`;
+        $('fileMeta').textContent = `Tabela "${TABLE_NAME}" — ${state.allEquip.length} equipamentos · ${state.allFront.length} frentes.`;
 
-        if (!metaRows.length) {
+        if (!maxDate) {
           setStatus('Conectei no Supabase, mas a tabela ainda não tem dados. Insira dados no Table Editor.', true);
           hideResults();
           return;
         }
 
-        setStatus(`Conectado${truncNote}. Período: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
+        setStatus(`Conectado. Período: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
       } catch (err) {
         console.error('loadDataFromSupabase error:', err);
         setConnStatus('Erro na conexão', 'err');
