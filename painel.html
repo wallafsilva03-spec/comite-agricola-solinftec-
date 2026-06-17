@@ -207,7 +207,7 @@
 
     .filters-horizontal {
       display: grid;
-      grid-template-columns: 240px minmax(260px, 1fr) minmax(260px, 1fr) minmax(260px, 1fr);
+      grid-template-columns: 240px 1fr;
       gap: 12px;
       align-items: start;
     }
@@ -561,7 +561,7 @@
     }
 
     @media (max-width: 1250px) {
-      .filters-horizontal { grid-template-columns: 1fr 1fr; }
+      .filters-horizontal { grid-template-columns: 1fr; }
       .periods-grid { grid-template-columns: 1fr 1fr; }
       .cards { grid-template-columns: 1fr 1fr; }
     }
@@ -768,14 +768,8 @@
       <div class="panel-body">
         <div class="filters-horizontal">
           <div class="control-card">
-            <h3>Tipo de análise</h3>
-            <span class="label" style="margin-top:10px">Filtro de exibição</span>
-            <div class="segmented" role="group">
-              <button id="modeEquip" class="active" type="button">Frota</button>
-              <button id="modeFront" type="button">Frente</button>
-            </div>
-
-            <span class="label">Configuração avançada</span>
+            <h3>Configurações</h3>
+            <span class="label" style="margin-top:10px">Configuração avançada</span>
             <label class="switch-row">
               <input id="deslocToggle" type="checkbox" />
               <div>
@@ -790,26 +784,14 @@
                 <div class="switch-desc">Oculta o P1 da tabela, ofensores e PowerPoint.</div>
               </div>
             </label>
-            <span class="hint">O filtro escolhido será aplicado nos 4 períodos.</span>
           </div>
 
-          <div id="equipGroup" class="control-card">
-            <h3>Frota / Equipamento</h3>
-            <span class="label">Coluna Equipamento</span>
-            <div id="equipBox" class="multi-box"></div>
-          </div>
-
-          <div id="frontGroup" class="control-card hidden">
-            <h3>Frente</h3>
-            <span class="label">Coluna Frente</span>
-            <div id="frontBox" class="multi-box"></div>
-          </div>
-
-          <div id="modelGroup" class="control-card hidden">
-            <h3>Modelo</h3>
-            <span class="label">Modelo da frente</span>
-            <div id="modelBox" class="multi-box"></div>
-            <span class="hint">Se nenhum modelo for marcado, considera todos os modelos das frentes selecionadas.</span>
+          <div id="frontGroup" class="control-card" style="grid-column: span 3">
+            <h3>Filtro por Frente <span style="font-size:12px;font-weight:600;color:var(--muted)">(opcional)</span></h3>
+            <span class="label">Digite as frentes separadas por vírgula</span>
+            <input id="frenteFilterInput" type="text" placeholder="Ex: Frente 01, Frente 02, Frente 04"
+              style="width:100%;border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:14px;color:var(--ink);outline:none;margin-bottom:8px" />
+            <span class="hint">Deixe em branco para trazer todos os dados. Separe múltiplas frentes por vírgula.</span>
           </div>
         </div>
 
@@ -1019,8 +1001,7 @@
       // Tipo de equipamento — filtro visual (client-side)
       localStorage.removeItem('painel_class_equip');
       state.classEquip = '';
-      $('modeEquip').addEventListener('click', () => setMode('equip'));
-      $('modeFront').addEventListener('click', () => setMode('front'));
+      if ($('frenteFilterInput')) $('frenteFilterInput').addEventListener('input', () => updateFilterSummary());
       $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
       $('skipP1Toggle').addEventListener('change', () => maybeAutoCalc());
       $('calcBtn').addEventListener('click', calcComparison);
@@ -1116,79 +1097,24 @@
         setStatus('Configure a conexão com o Supabase para iniciar.', true);
         return;
       }
-      if (!silent) setStatus('Carregando metadados do Supabase...', false);
-      setProgress(10);
+      if (!silent) setStatus('Verificando conexão...', false);
+      setProgress(20);
       clearFetchCache();
       try {
-        // Busca em paralelo: datas + valores distintos de frente/equipamento via RPC
-        const [dateRes, oldestRes, filtrosRes] = await Promise.all([
-          state.supabase.from(TABLE_NAME).select('data').order('data', { ascending: false }).limit(1),
-          state.supabase.from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1),
-          state.supabase.rpc('get_filtros_linha_do_tempo')
-        ]);
-        if (dateRes.error) throw dateRes.error;
-
-        const maxDate = dateRes.data?.[0]?.data || null;
-        const minDate = oldestRes.data?.[0]?.data || maxDate;
-
-        // Busca valores distintos de frente e codigo_equipamento
-        let frentesAll = [], equipAll = [];
-        try {
-          if (!filtrosRes.error && filtrosRes.data && filtrosRes.data.length > 0) {
-            frentesAll = filtrosRes.data.filter(r => r.tipo === 'frente').map(r => r.valor).filter(Boolean);
-            equipAll  = filtrosRes.data.filter(r => r.tipo === 'codigo_equipamento').map(r => r.valor).filter(Boolean);
-          }
-        } catch (_) {}
-        // Se RPC não trouxe dados, busca direto na tabela
-        if (frentesAll.length === 0 || equipAll.length === 0) {
-          try {
-            const [fr, eq] = await Promise.all([
-              state.supabase.from(TABLE_NAME).select('frente').not('frente','is',null).neq('frente','').limit(10000),
-              state.supabase.from(TABLE_NAME).select('codigo_equipamento').not('codigo_equipamento','is',null).neq('codigo_equipamento','').limit(10000)
-            ]);
-            if (frentesAll.length === 0) frentesAll = [...new Set((fr.data||[]).map(r=>(r.frente||'').trim()).filter(Boolean))];
-            if (equipAll.length === 0)   equipAll   = [...new Set((eq.data||[]).map(r=>(r.codigo_equipamento||'').trim()).filter(Boolean))];
-          } catch (_) {}
-        }
-
-        const metaRows = maxDate ? [{ d: maxDate, f: '', e: '', m: '' }] : [];
-        const truncated = false;
-
-        state.metaRows = metaRows;
-        state.rows = [];
-        state.rowCount = frentesAll.length + equipAll.length;
-        state.rowsLoaded = !!maxDate;
-        state.minDate = minDate;
-        state.maxDate = maxDate;
-
-        state.allFront = uniqueSorted(frentesAll);
-        state.allEquip = uniqueSorted(equipAll);
-        state.allModel = state.allEquip;
-        console.log('[DIAG META] frentes encontradas:', state.allFront.length, state.allFront.slice(0,5));
-        console.log('[DIAG META] equipamentos encontrados:', state.allEquip.length, state.allEquip.slice(0,3));
-
-        buildFilters();
-        if (!silent || !$('p1Start').value) setDefaultPeriods();
-        updateFilterSummary();
-        setProgress(100);
-        setTimeout(() => setProgress(0), 700);
+        // Só valida que a tabela existe — sem buscar frentes/equipamentos
+        const { error } = await state.supabase.from(TABLE_NAME).select('data').limit(1);
+        if (error) throw error;
+        state.rowsLoaded = true;
         setConnStatus('Conectado', 'ok');
-        $('fileMeta').textContent = `Tabela "${TABLE_NAME}" — ${state.allEquip.length} equipamentos · ${state.allFront.length} frentes.`;
-
-        if (!maxDate) {
-          setStatus('Conectei no Supabase, mas a tabela ainda não tem dados. Insira dados no Table Editor.', true);
-          hideResults();
-          return;
-        }
-
-        setStatus(`Conectado. Período: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
+        $('fileMeta').textContent = `Conectado à tabela "${TABLE_NAME}". Configure as datas e clique em Calcular.`;
+        setStatus('Conectado. Configure os períodos, filtre por frente se quiser, e clique em Calcular.', false);
+        setProgress(100);
+        setTimeout(() => setProgress(0), 400);
       } catch (err) {
         console.error('loadDataFromSupabase error:', err);
         setConnStatus('Erro na conexão', 'err');
-        const detail = err?.message || err?.error_description || err?.hint || err?.details || (typeof err === 'string' ? err : JSON.stringify(err)) || 'erro desconhecido';
-        const code = err?.code ? ` [código: ${err.code}]` : '';
-        const status = err?.status ? ` [HTTP ${err.status}]` : '';
-        setStatus(`Erro ao carregar dados${status}${code}: ${detail}`, true);
+        const detail = err?.message || err?.error_description || (typeof err === 'string' ? err : JSON.stringify(err)) || 'erro desconhecido';
+        setStatus(`Erro ao conectar: ${detail}`, true);
         setProgress(0);
       }
     }
@@ -1203,9 +1129,8 @@
       const minDate = allStarts[0];
       const maxDate = allEnds[allEnds.length - 1];
 
-      const eqKey = (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip].sort().join('|') : '';
-      const frKey = (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front].sort().join('|') : '';
-      const cacheKey = `${minDate}~${maxDate}~${filters.mode}~${eqKey}~${frKey}`;
+      const frKey = filters.front.size > 0 ? [...filters.front].sort().join('|') : '';
+      const cacheKey = `${minDate}~${maxDate}~${frKey}`;
 
       let baseRows = _fetchCache.get(cacheKey);
       if (!baseRows) {
@@ -1214,52 +1139,17 @@
       } else {
         setProgress(70);
       }
-      // Filtro de tipo (Trator/Colhedora/...) é barato — aplicado fora do cache
       return baseRows;
     }
 
-    // Busca os dados e normaliza para {d,f,e,m,c,cd,a,h}.
-    // Tenta o RPC agregado (rápido); se indisponível, cai para busca direta paginada.
     async function fetchAndNormalize(minDate, maxDate, filters) {
-      const equipArr = (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip] : null;
-      const frentArr = (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front] : null;
-
+      const frentArr = filters.front.size > 0 ? [...filters.front] : null;
       setProgress(20);
-      // 1) tenta RPC agregado
-      try {
-        const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', {
-          p_data_inicio: minDate, p_data_fim: maxDate,
-          p_equipamentos: equipArr, p_frentes: frentArr
-        });
-        if (!error && data && data.length > 0) {
-          setProgress(70);
-          return normalizeRpcRows(data);
-        }
-      } catch (_) { /* ignora, cai para fallback */ }
-      // 2) fallback: busca direta paginada
-      return await fetchRawRows(minDate, maxDate, equipArr, frentArr);
+      return await fetchRawRows(minDate, maxDate, frentArr);
     }
 
-    function normalizeRpcRows(data) {
-      const rows = [];
-      for (const r of data) {
-        const horas = Number(r.total_horas);
-        if (!isFinite(horas) || horas < 0) continue;
-        const classificacao = normText(r.classificacao);
-        let atividade = normText(r.atividade);
-        if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
-        if (!classificacao || !atividade || !r.data) continue;
-        rows.push({
-          d: r.data, f: (r.frente || '').toString().trim(),
-          e: (r.codigo_equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
-          c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
-          a: atividade, h: horas
-        });
-      }
-      return rows;
-    }
 
-    async function fetchRawRows(minDate, maxDate, equipArr, frentArr) {
+    async function fetchRawRows(minDate, maxDate, frentArr) {
       const pageSize = 1000;
       let from = 0;
       const rows = [];
@@ -1270,8 +1160,7 @@
           .gte('data', minDate).lte('data', maxDate)
           .order('data', { ascending: true })
           .range(from, from + pageSize - 1);
-        if (equipArr) query = query.in('codigo_equipamento', equipArr);
-        else if (frentArr) query = query.in('frente', frentArr);
+        if (frentArr) query = query.in('frente', frentArr);
         const { data, error } = await query;
         if (error) throw error;
         // Diagnóstico: loga primeira linha para checar formato dos campos
@@ -1316,25 +1205,7 @@
       $('loadingBar').style.width = `${Math.max(0, Math.min(100, pct))}%`;
     }
 
-    function buildFilters() {
-      createMultiBox('equipBox', state.allEquip, state.selectedEquip, () => { updateFilterSummary(); maybeAutoCalc(); });
-      createMultiBox('frontBox', state.allFront, state.selectedFront, () => { refreshModelFilter(); updateFilterSummary(); maybeAutoCalc(); });
-      refreshModelFilter();
-    }
-
-    function refreshModelFilter() {
-      const fronts = new Set([...state.selectedFront].map(String));
-      const out = new Set();
-      for (const r of (state.metaRows || [])) {
-        if (fronts.size && !fronts.has(String(r.f))) continue;
-        if (r.m) out.add(r.m);
-      }
-      state.allModel = uniqueSorted([...out]);
-      for (const m of [...state.selectedModel]) {
-        if (!state.allModel.includes(m)) state.selectedModel.delete(m);
-      }
-      createMultiBox('modelBox', state.allModel, state.selectedModel, () => { updateFilterSummary(); maybeAutoCalc(); });
-    }
+    function buildFilters() { /* filtro agora é campo de texto, nada a construir */ }
 
     function createMultiBox(id, values, selectedSet, onChange) {
       const box = $(id);
@@ -1385,24 +1256,7 @@
       render();
     }
 
-    function setMode(mode) {
-      state.mode = mode;
-      $('modeEquip').classList.toggle('active', mode === 'equip');
-      $('modeFront').classList.toggle('active', mode === 'front');
-      $('equipGroup').classList.toggle('hidden', mode !== 'equip');
-      $('frontGroup').classList.toggle('hidden', mode !== 'front');
-      $('modelGroup').classList.toggle('hidden', mode !== 'front');
-      updateFilterSummary();
-      maybeAutoCalc();
-    }
-
-    function setDefaultPeriods() {
-      if (!state.minDate || !state.maxDate) return;
-      ['p1','p2','p3','p4'].forEach(p => {
-        $(`${p}Start`).value = state.minDate;
-        $(`${p}End`).value = state.maxDate;
-      });
-    }
+    function setMode() { /* não usado — filtro é campo de texto */ }
 
     function copyPeriod4ToAll() {
       const s = $('p4Start').value;
@@ -1419,16 +1273,16 @@
     }
 
     function updateFilterSummary() {
-      $('filterSummary').textContent = getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
+      const raw = ($('frenteFilterInput') ? $('frenteFilterInput').value : '').trim();
+      const frentes = raw ? raw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+      const txt = frentes.length ? `${frentes.length} frente(s)` : 'Todas as frentes';
+      $('filterSummary').textContent = txt + ($('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '');
     }
 
     function getSelectionText() {
-      if (state.mode === 'equip') {
-        return state.selectedEquip.size ? `${state.selectedEquip.size} frota(s)` : 'Todas as frotas';
-      }
-      const f = state.selectedFront.size ? `${state.selectedFront.size} frente(s)` : 'Todas as frentes';
-      const m = state.selectedModel.size ? `${state.selectedModel.size} modelo(s)` : 'Todos os modelos';
-      return `${f} / ${m}`;
+      const raw = ($('frenteFilterInput') ? $('frenteFilterInput').value : '').trim();
+      const frentes = raw ? raw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+      return frentes.length ? `${frentes.length} frente(s)` : 'Todas as frentes';
     }
 
     function periodComplete(prefix) {
@@ -1444,15 +1298,12 @@
     }
 
     function passesGlobalFilters(row, filters) {
-      const mode = filters.mode || 'equip';
-      const equip = filters.equip;
-      const front = filters.front;
-      const model = filters.model;
-      if (mode === 'equip') {
-        return equip.size === 0 || equip.has(String(row.e));
+      const mode = filters.mode || 'all';
+      if (mode === 'all') return true;
+      if (mode === 'front') {
+        const front = filters.front;
+        return front.size === 0 || front.has(String(row.f));
       }
-      if (front.size > 0 && !front.has(String(row.f))) return false;
-      if (model.size > 0 && !model.has(String(row.m))) return false;
       return true;
     }
 
@@ -1546,11 +1397,16 @@
         }
       }
       try {
+        // Lê frentes do campo de texto (separadas por vírgula)
+        const frenteInputRaw = ($('frenteFilterInput').value || '').trim();
+        const frenteList = frenteInputRaw
+          ? frenteInputRaw.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
         const filters = {
-          mode: state.mode,
-          equip: new Set([...state.selectedEquip]),
-          front: new Set([...state.selectedFront]),
-          model: new Set([...state.selectedModel]),
+          mode: frenteList.length > 0 ? 'front' : 'all',
+          equip: new Set(),
+          front: new Set(frenteList),
+          model: new Set(),
           deslocToggle: $('deslocToggle').checked
         };
         setStatus('Buscando dados do servidor...', false);
@@ -1868,11 +1724,13 @@
           { start: atuStart, end: atuEnd },
           { start: mesStart, end: mesEnd }
         ];
+        const frenteInputRaw = ($('frenteFilterInput').value || '').trim();
+        const frenteList = frenteInputRaw ? frenteInputRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
         const filters = {
-          mode: state.mode,
-          equip: new Set([...state.selectedEquip]),
-          front: new Set([...state.selectedFront]),
-          model: new Set([...state.selectedModel]),
+          mode: frenteList.length > 0 ? 'front' : 'all',
+          equip: new Set(),
+          front: new Set(frenteList),
+          model: new Set(),
           deslocToggle: $('deslocToggle').checked
         };
         const calcRows = await fetchRowsForCalc(periods, filters);
