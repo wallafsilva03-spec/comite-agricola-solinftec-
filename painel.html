@@ -1065,7 +1065,9 @@
 
     function calcHoras(ini, fim) {
       if (!ini || !fim) return 0;
-      const a = new Date(ini), b = new Date(fim);
+      // Suporta timestamp completo ("2026-06-01T08:00:00") ou só hora ("08:00:00" / "08:00")
+      const toTs = s => /^\d{1,2}:\d{2}/.test(String(s)) ? `1970-01-01T${s}` : String(s);
+      const a = new Date(toTs(ini)), b = new Date(toTs(fim));
       if (isNaN(a) || isNaN(b)) return 0;
       const diff = (b - a) / 3600000;
       return diff < 0 ? diff + 24 : diff; // atravessa meia-noite
@@ -1278,6 +1280,12 @@
         else if (frentArr) query = query.in('frente', frentArr);
         const { data, error } = await query;
         if (error) throw error;
+        // Diagnóstico: loga primeira linha para checar formato dos campos
+        if (from === 0 && data && data[0]) {
+          const s = data[0];
+          console.log('[DIAG] Primeira linha:', JSON.stringify({data:s.data, hora_inicial:s.hora_inicial, hora_final:s.hora_final, classificacao:s.classificacao, atividade:s.atividade}));
+          console.log('[DIAG] calcHoras teste:', calcHoras(s.hora_inicial, s.hora_final));
+        }
         for (const r of (data || [])) {
           const horas = calcHoras(r.hora_inicial, r.hora_final);
           if (!isFinite(horas) || horas < 0) continue;
