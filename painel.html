@@ -1167,6 +1167,8 @@
         state.allEquip = uniqueSorted([...equip]);
         state.allFront = uniqueSorted([...front]);
         state.allModel = uniqueSorted([...model]);
+        console.log('[DIAG META] frentes encontradas:', state.allFront.length, state.allFront.slice(0,5));
+        console.log('[DIAG META] equipamentos encontrados:', state.allEquip.length, state.allEquip.slice(0,3));
 
         for (const v of [...state.selectedEquip]) if (!state.allEquip.includes(v)) state.selectedEquip.delete(v);
         for (const v of [...state.selectedFront]) if (!state.allFront.includes(v)) state.selectedFront.delete(v);
