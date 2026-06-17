@@ -769,7 +769,17 @@
         <div class="filters-horizontal">
           <div class="control-card">
             <h3>Tipo de análise</h3>
-            <span class="label">Filtro principal</span>
+            <span class="label" style="color:#b42318;font-weight:900">⚡ Tipo de equipamento (filtra na API)</span>
+            <div class="segmented" role="group" style="flex-wrap:wrap;gap:4px">
+              <button id="ceAll"   class="active" type="button" data-ce="">Todos</button>
+              <button id="ceComb"  class="ce-btn"  type="button" data-ce="COLHED">Colhedora</button>
+              <button id="ceTrans" class="ce-btn"  type="button" data-ce="TRANSBORDO">Transbordo</button>
+              <button id="ceCam"   class="ce-btn"  type="button" data-ce="CAMINHA">Caminhão</button>
+              <button id="ceTrat"  class="ce-btn"  type="button" data-ce="TRATOR">Trator</button>
+            </div>
+            <span class="hint">Selecionar um tipo reduz drasticamente o volume de dados buscados.</span>
+
+            <span class="label" style="margin-top:10px">Filtro de exibição</span>
             <div class="segmented" role="group">
               <button id="modeEquip" class="active" type="button">Frota</button>
               <button id="modeFront" type="button">Frente</button>
@@ -995,7 +1005,8 @@
       lastResult: null,
       calcSeq: 0,
       supabase: null,
-      channel: null
+      channel: null,
+      classEquip: ''
     };
 
     const $ = (id) => document.getElementById(id);
@@ -1015,6 +1026,21 @@
         connectSupabase(url, key);
       });
       $('refreshBtn').addEventListener('click', () => loadDataFromSupabase());
+      // Tipo de equipamento — filtra direto na API
+      document.querySelectorAll('[data-ce]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.classEquip = btn.dataset.ce;
+          document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          updateFilterSummary();
+          loadDataFromSupabase();
+        });
+      });
+      // Restaura seleção do localStorage
+      const savedCe = localStorage.getItem('painel_class_equip') || '';
+      state.classEquip = savedCe;
+      const ceBtn = document.querySelector(`[data-ce="${savedCe}"]`);
+      if (ceBtn) { document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active')); ceBtn.classList.add('active'); }
       $('modeEquip').addEventListener('click', () => setMode('equip'));
       $('modeFront').addEventListener('click', () => setMode('front'));
       $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
@@ -1059,6 +1085,13 @@
       $('connStatus').innerHTML = `<span id="connDot" class="dot ${kind || ''}"></span> ${text}`;
     }
 
+    function applyClassEquipFilter(query) {
+      const ce = state.classEquip;
+      if (!ce) return query;
+      localStorage.setItem('painel_class_equip', ce);
+      return query.ilike('modelo', `%${ce}%`);
+    }
+
     function connectSupabase(url, key) {
       try {
         state.supabase = supabase.createClient(url, key);
@@ -1097,11 +1130,13 @@
         let from = 0;
         let all = [];
         while (true) {
-          const { data, error } = await state.supabase
+          let q = state.supabase
             .from(TABLE_NAME)
             .select('data, frente, equipamento, modelo')
             .order('data', { ascending: true })
             .range(from, from + pageSize - 1);
+          q = applyClassEquipFilter(q);
+          const { data, error } = await q;
           if (error) throw error;
           all = all.concat(data || []);
           setProgress(10 + Math.min(80, all.length / 50));
@@ -1184,6 +1219,7 @@
           .lte('data', maxDate)
           .order('data', { ascending: true })
           .range(from, from + pageSize - 1);
+        query = applyClassEquipFilter(query);
         if (filters.mode === 'equip' && filters.equip.size > 0) {
           query = query.in('equipamento', [...filters.equip]);
         } else if (filters.mode === 'front' && filters.front.size > 0) {
@@ -1334,7 +1370,9 @@
     }
 
     function updateFilterSummary() {
-      $('filterSummary').textContent = getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
+      const ceMap = { '':'Todos os equip.', 'COLHED':'Colhedora', 'TRANSBORDO':'Transbordo', 'CAMINHA':'Caminhão', 'TRATOR':'Trator' };
+      const ceLabel = ceMap[state.classEquip] || state.classEquip;
+      $('filterSummary').textContent = `[${ceLabel}] ` + getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
     }
 
     function getSelectionText() {
