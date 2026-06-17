@@ -1029,10 +1029,11 @@
       document.querySelectorAll('[data-ce]').forEach(btn => {
         btn.addEventListener('click', () => {
           state.classEquip = btn.dataset.ce;
+          localStorage.setItem('painel_class_equip', btn.dataset.ce);
           document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           updateFilterSummary();
-          loadDataFromSupabase();
+          maybeAutoCalc();
         });
       });
       // Restaura seleção do localStorage (limpa valores inválidos de versões antigas)
@@ -1089,13 +1090,13 @@
     function applyClassEquipClientSide(rows) {
       const ce = state.classEquip;
       if (!ce) return rows;
-      if (ce === 'TRATOR_TRANS') {
-        return rows.filter(r => {
-          const m = normText(r.modelo || r.m || '');
-          return m.includes('TRATOR') || m.includes('TRANSBORDO');
-        });
-      }
-      return rows; // demais já foram filtrados no servidor
+      return rows.filter(r => {
+        const cls = classifyEquip(r.modelo || r.m || '');
+        if (ce === 'TRATOR_TRANS') return cls === 'TRATOR' || cls === 'TRANSBORDO';
+        if (ce === 'COLHED') return cls === 'COLHEDORA';
+        if (ce === 'CAMINHA') return cls === 'CAMINHAO';
+        return true;
+      });
     }
 
     function connectSupabase(url, key) {
@@ -1202,8 +1203,10 @@
       } catch (err) {
         console.error('loadDataFromSupabase error:', err);
         setConnStatus('Erro na conexão', 'err');
-        const detail = err?.message || err?.error_description || JSON.stringify(err) || 'erro desconhecido';
-        setStatus(`Erro ao carregar dados: ${detail}`, true);
+        const detail = err?.message || err?.error_description || err?.hint || err?.details || (typeof err === 'string' ? err : JSON.stringify(err)) || 'erro desconhecido';
+        const code = err?.code ? ` [código: ${err.code}]` : '';
+        const status = err?.status ? ` [HTTP ${err.status}]` : '';
+        setStatus(`Erro ao carregar dados${status}${code}: ${detail}`, true);
         setProgress(0);
       }
     }
