@@ -1171,18 +1171,18 @@
         }
         for (const r of (data || [])) {
           const horas = calcHoras(r.hora_inicial, r.hora_final);
-          if (!isFinite(horas) || horas < 0) continue;
-          const classificacao = normText(r.classificacao);
-          let atividade = normText(r.atividade);
+          const classificacao = normText(r.classificacao) || 'SEM CLASSIFICACAO';
+          let atividade = normText(r.atividade) || 'SEM APONTAMENTO';
           if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
-          if (!classificacao || !atividade || !r.data) continue;
+          if (!r.data) continue;
           rows.push({
             d: r.data, f: (r.frente || '').toString().trim(),
             e: (r.codigo_equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
             c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
-            a: atividade, h: horas
+            a: atividade, h: Math.max(0, isFinite(horas) ? horas : 0)
           });
         }
+        if (from === 0) console.log(`[DIAG] Página 0: ${(data||[]).length} linhas brutas → ${rows.length} normalizadas`);
         setProgress(20 + Math.min(50, Math.floor((data || []).length ? from / 200 : 0)));
         if (!data || data.length < pageSize) break;
         from += pageSize;
@@ -1329,7 +1329,7 @@
         if (!passesGlobalFilters(row, filters)) continue;
         if (row.d < period.start || row.d > period.end) continue;
         const h = row.h;
-        if (!isFinite(h) || h <= 0) continue;
+        if (!isFinite(h) || h < 0) continue;
         const deslocProd = isDeslocamentoProdutivo(row, filters.deslocToggle);
         const cls = deslocProd ? 'PRODUTIVA' : row.c;
         total += h;
