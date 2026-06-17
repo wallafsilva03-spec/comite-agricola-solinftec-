@@ -1087,6 +1087,14 @@
       $('connStatus').innerHTML = `<span id="connDot" class="dot ${kind || ''}"></span> ${text}`;
     }
 
+    function calcHoras(ini, fim) {
+      if (!ini || !fim) return 0;
+      const a = new Date(ini), b = new Date(fim);
+      if (isNaN(a) || isNaN(b)) return 0;
+      const diff = (b - a) / 3600000;
+      return diff < 0 ? diff + 24 : diff; // atravessa meia-noite
+    }
+
     function applyClassEquipClientSide(rows) {
       const ce = state.classEquip;
       if (!ce) return rows;
@@ -1139,7 +1147,7 @@
         while (true) {
           const { data, error } = await state.supabase
             .from(TABLE_NAME)
-            .select('data, frente, equipamento, modelo')
+            .select('data, frente, equipamento')
             .order('data', { ascending: true })
             .range(from, from + pageSize - 1);
           if (error) throw error;
@@ -1158,7 +1166,7 @@
             d: r.data,
             f: (r.frente || '').toString().trim(),
             e: (r.equipamento || '').toString().trim(),
-            m: (r.modelo || '').toString().trim(),
+            m: (r.equipamento || '').toString().trim(),
           });
           if (!minDate || r.data < minDate) minDate = r.data;
           if (!maxDate || r.data > maxDate) maxDate = r.data;
@@ -1222,7 +1230,7 @@
       while (true) {
         let query = state.supabase
           .from(TABLE_NAME)
-          .select('data, frente, equipamento, modelo, classificacao_ativ, cd_atividade, atividade, tempo_decimal')
+          .select('data, frente, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
           .gte('data', minDate)
           .lte('data', maxDate)
           .order('data', { ascending: true })
@@ -1243,9 +1251,9 @@
       all = applyClassEquipClientSide(all);
       const rows = [];
       for (const r of all) {
-        const horas = Number(r.tempo_decimal);
+        const horas = calcHoras(r.hora_inicial, r.hora_final);
         if (!isFinite(horas) || horas < 0) continue;
-        const classificacao = normText(r.classificacao_ativ);
+        const classificacao = normText(r.classificacao);
         let atividade = normText(r.atividade);
         if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
         if (!classificacao || !atividade || !r.data) continue;
@@ -1253,9 +1261,9 @@
           d: r.data,
           f: (r.frente || '').toString().trim(),
           e: (r.equipamento || '').toString().trim(),
-          m: (r.modelo || '').toString().trim(),
+          m: (r.equipamento || '').toString().trim(),
           c: classificacao,
-          cd: (r.cd_atividade || '').toString().trim(),
+          cd: (r.codigo_operacao || '').toString().trim(),
           a: atividade,
           h: horas
         });
