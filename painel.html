@@ -1140,6 +1140,7 @@
       }
       if (!silent) setStatus('Carregando metadados do Supabase...', false);
       setProgress(10);
+      clearFetchCache();
       try {
         // Busca os 5000 registros mais recentes para popular filtros (query simples e rápida)
         const { data: metaSample, error: metaErr } = await state.supabase
@@ -1220,30 +1221,56 @@
       }
     }
 
+    // Cache de buscas: evita re-consultar a API ao recalcular o mesmo período/filtro
+    const _fetchCache = new Map();
+    function clearFetchCache() { _fetchCache.clear(); }
+
     async function fetchRowsForCalc(periods, filters) {
       const allStarts = periods.map(p => p.start).filter(Boolean).sort();
       const allEnds = periods.map(p => p.end).filter(Boolean).sort();
       const minDate = allStarts[0];
       const maxDate = allEnds[allEnds.length - 1];
 
-      setProgress(20);
-      const params = {
-        p_data_inicio: minDate,
-        p_data_fim: maxDate,
-        p_equipamentos: (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip] : null,
-        p_frentes: (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front] : null
-      };
-      const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', params);
-      if (error) {
-        const isNotFound = error.code === 'PGRST202' || error.message?.includes('resumo_linha_do_tempo');
-        if (isNotFound) throw new Error('Função "resumo_linha_do_tempo" não encontrada no Supabase. Crie-a pelo SQL Editor conforme instruções.');
-        throw error;
-      }
-      setProgress(70);
+      const eqKey = (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip].sort().join('|') : '';
+      const frKey = (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front].sort().join('|') : '';
+      const cacheKey = `${minDate}~${maxDate}~${filters.mode}~${eqKey}~${frKey}`;
 
-      let all = applyClassEquipClientSide(data || []);
+      let baseRows = _fetchCache.get(cacheKey);
+      if (!baseRows) {
+        baseRows = await fetchAndNormalize(minDate, maxDate, filters);
+        _fetchCache.set(cacheKey, baseRows);
+      } else {
+        setProgress(70);
+      }
+      // Filtro de tipo (Trator/Colhedora/...) é barato — aplicado fora do cache
+      return applyClassEquipClientSide(baseRows);
+    }
+
+    // Busca os dados e normaliza para {d,f,e,m,c,cd,a,h}.
+    // Tenta o RPC agregado (rápido); se indisponível, cai para busca direta paginada.
+    async function fetchAndNormalize(minDate, maxDate, filters) {
+      const equipArr = (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip] : null;
+      const frentArr = (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front] : null;
+
+      setProgress(20);
+      // 1) tenta RPC agregado
+      const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', {
+        p_data_inicio: minDate, p_data_fim: maxDate,
+        p_equipamentos: equipArr, p_frentes: frentArr
+      });
+      if (!error) {
+        setProgress(70);
+        return normalizeRpcRows(data || []);
+      }
+      // 2) fallback: busca direta paginada (funciona bem em bases menores)
+      const isNotFound = error.code === 'PGRST202' || /resumo_linha_do_tempo|not exist|schema cache/i.test(error.message || '');
+      if (!isNotFound && !/timeout|canceling/i.test(error.message || '')) throw error;
+      return await fetchRawRows(minDate, maxDate, equipArr, frentArr);
+    }
+
+    function normalizeRpcRows(data) {
       const rows = [];
-      for (const r of all) {
+      for (const r of data) {
         const horas = Number(r.total_horas);
         if (!isFinite(horas) || horas < 0) continue;
         const classificacao = normText(r.classificacao);
@@ -1251,16 +1278,49 @@
         if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
         if (!classificacao || !atividade || !r.data) continue;
         rows.push({
-          d: r.data,
-          f: (r.frente || '').toString().trim(),
-          e: (r.equipamento || '').toString().trim(),
-          m: (r.equipamento || '').toString().trim(),
-          c: classificacao,
-          cd: (r.codigo_operacao || '').toString().trim(),
-          a: atividade,
-          h: horas
+          d: r.data, f: (r.frente || '').toString().trim(),
+          e: (r.equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
+          c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
+          a: atividade, h: horas
         });
       }
+      return rows;
+    }
+
+    async function fetchRawRows(minDate, maxDate, equipArr, frentArr) {
+      const pageSize = 1000;
+      let from = 0;
+      const rows = [];
+      while (true) {
+        let query = state.supabase
+          .from(TABLE_NAME)
+          .select('data, frente, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
+          .gte('data', minDate).lte('data', maxDate)
+          .order('data', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (equipArr) query = query.in('equipamento', equipArr);
+        else if (frentArr) query = query.in('frente', frentArr);
+        const { data, error } = await query;
+        if (error) throw error;
+        for (const r of (data || [])) {
+          const horas = calcHoras(r.hora_inicial, r.hora_final);
+          if (!isFinite(horas) || horas < 0) continue;
+          const classificacao = normText(r.classificacao);
+          let atividade = normText(r.atividade);
+          if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
+          if (!classificacao || !atividade || !r.data) continue;
+          rows.push({
+            d: r.data, f: (r.frente || '').toString().trim(),
+            e: (r.equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
+            c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
+            a: atividade, h: horas
+          });
+        }
+        setProgress(20 + Math.min(50, Math.floor((data || []).length ? from / 200 : 0)));
+        if (!data || data.length < pageSize) break;
+        from += pageSize;
+      }
+      setProgress(70);
       return rows;
     }
 
