@@ -1557,7 +1557,12 @@
         setTimeout(() => setProgress(0), 400);
       } catch (err) {
         console.error(err);
-        setStatus(`Erro ao calcular: ${err.message || err}`, true);
+        const msg = err.message || String(err);
+        const isTimeout = msg.includes('timeout') || msg.includes('canceling');
+        const hint = isTimeout
+          ? ' ⚠️ Timeout: crie um índice no Supabase — SQL Editor → CREATE INDEX IF NOT EXISTS idx_linha_do_tempo_data ON linha_do_tempo (data);'
+          : '';
+        setStatus(`Erro ao calcular: ${msg}${hint}`, true);
         setProgress(0);
       }
     }
