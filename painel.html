@@ -1141,30 +1141,15 @@
       if (!silent) setStatus('Carregando metadados do Supabase...', false);
       setProgress(10);
       try {
-        // Busca colunas mínimas para popular filtros usando cursor (evita OFFSET lento)
-        const META_LIMIT = 5000;
-        const pageSize = 1000;
-        let lastId = null;
-        let all = [];
-        // Pega o id máximo primeiro para paginar de trás para frente (registros mais recentes)
-        const { data: maxRow } = await state.supabase
-          .from(TABLE_NAME).select('id').order('id', { ascending: false }).limit(1);
-        let cursorId = maxRow && maxRow[0] ? maxRow[0].id + 1 : 999999999;
-        while (all.length < META_LIMIT) {
-          const { data, error } = await state.supabase
-            .from(TABLE_NAME)
-            .select('id, data, frente, equipamento')
-            .lt('id', cursorId)
-            .order('id', { ascending: false })
-            .limit(pageSize);
-          if (error) throw error;
-          if (!data || data.length === 0) break;
-          all = all.concat(data);
-          cursorId = data[data.length - 1].id;
-          setProgress(10 + Math.min(80, (all.length / META_LIMIT) * 80));
-          if (data.length < pageSize) break;
-        }
-        const truncated = all.length >= META_LIMIT;
+        // Busca os 5000 registros mais recentes para popular filtros (query simples e rápida)
+        const { data: metaSample, error: metaErr } = await state.supabase
+          .from(TABLE_NAME)
+          .select('data, frente, equipamento')
+          .order('data', { ascending: false })
+          .limit(5000);
+        if (metaErr) throw metaErr;
+        const all = metaSample || [];
+        const truncated = all.length >= 5000;
 
         const metaRows = [];
         let minDate = null;
@@ -1180,7 +1165,7 @@
           if (!minDate || r.data < minDate) minDate = r.data;
           if (!maxDate || r.data > maxDate) maxDate = r.data;
         }
-        // Se truncou, busca o registro mais antigo para saber o minDate real
+        // Se truncou, busca a data mais antiga separadamente
         if (truncated) {
           const { data: oldest } = await state.supabase
             .from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1);
@@ -1249,7 +1234,11 @@
         p_frentes: (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front] : null
       };
       const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', params);
-      if (error) throw error;
+      if (error) {
+        const isNotFound = error.code === 'PGRST202' || error.message?.includes('resumo_linha_do_tempo');
+        if (isNotFound) throw new Error('Função "resumo_linha_do_tempo" não encontrada no Supabase. Crie-a pelo SQL Editor conforme instruções.');
+        throw error;
+      }
       setProgress(70);
 
       let all = applyClassEquipClientSide(data || []);
