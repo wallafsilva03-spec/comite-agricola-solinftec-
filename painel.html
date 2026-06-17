@@ -1141,21 +1141,25 @@
       if (!silent) setStatus('Carregando metadados do Supabase...', false);
       setProgress(10);
       try {
+        // Busca apenas as colunas mínimas para popular filtros, sem paginação infinita
+        // Limita a 5000 registros para não sobrecarregar a API
+        const META_LIMIT = 5000;
         const pageSize = 1000;
         let from = 0;
         let all = [];
-        while (true) {
+        while (all.length < META_LIMIT) {
           const { data, error } = await state.supabase
             .from(TABLE_NAME)
             .select('data, frente, equipamento')
-            .order('data', { ascending: true })
+            .order('data', { ascending: false })
             .range(from, from + pageSize - 1);
           if (error) throw error;
           all = all.concat(data || []);
-          setProgress(10 + Math.min(80, all.length / 50));
+          setProgress(10 + Math.min(80, (all.length / META_LIMIT) * 80));
           if (!data || data.length < pageSize) break;
           from += pageSize;
         }
+        const truncated = all.length >= META_LIMIT;
 
         const metaRows = [];
         let minDate = null;
@@ -1170,6 +1174,12 @@
           });
           if (!minDate || r.data < minDate) minDate = r.data;
           if (!maxDate || r.data > maxDate) maxDate = r.data;
+        }
+        // Se truncou, busca o registro mais antigo para saber o minDate real
+        if (truncated) {
+          const { data: oldest } = await state.supabase
+            .from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1);
+          if (oldest && oldest[0]) minDate = oldest[0].data;
         }
 
         state.metaRows = metaRows;
@@ -1199,7 +1209,8 @@
         setProgress(100);
         setTimeout(() => setProgress(0), 700);
         setConnStatus('Conectado', 'ok');
-        $('fileMeta').textContent = `Tabela "${TABLE_NAME}" — ${state.rowCount.toLocaleString('pt-BR')} registros encontrados.`;
+        const truncNote = truncated ? ' (amostra — tabela maior)' : '';
+        $('fileMeta').textContent = `Tabela "${TABLE_NAME}" — ${state.rowCount.toLocaleString('pt-BR')} registros carregados${truncNote}.`;
 
         if (!metaRows.length) {
           setStatus('Conectei no Supabase, mas a tabela ainda não tem dados. Insira dados no Table Editor.', true);
@@ -1207,7 +1218,7 @@
           return;
         }
 
-        setStatus(`Metadados carregados: ${state.rowCount.toLocaleString('pt-BR')} registros. Período da base: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
+        setStatus(`Conectado${truncNote}. Período: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
       } catch (err) {
         console.error('loadDataFromSupabase error:', err);
         setConnStatus('Erro na conexão', 'err');
