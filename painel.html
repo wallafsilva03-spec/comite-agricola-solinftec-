@@ -1131,18 +1131,24 @@
         const maxDate = dateRes.data?.[0]?.data || null;
         const minDate = oldestRes.data?.[0]?.data || maxDate;
 
-        // Se RPC de filtros falhou, tenta busca direta
+        // Busca valores distintos de frente e codigo_equipamento
         let frentesAll = [], equipAll = [];
-        if (!filtrosRes.error && filtrosRes.data) {
-          frentesAll = filtrosRes.data.filter(r => r.tipo === 'frente').map(r => r.valor);
-          equipAll  = filtrosRes.data.filter(r => r.tipo === 'codigo_equipamento').map(r => r.valor);
-        } else {
-          const [fr, eq] = await Promise.all([
-            state.supabase.from(TABLE_NAME).select('frente').not('frente','is',null).neq('frente','').limit(5000),
-            state.supabase.from(TABLE_NAME).select('codigo_equipamento').not('codigo_equipamento','is',null).neq('codigo_equipamento','').limit(5000)
-          ]);
-          frentesAll = [...new Set((fr.data||[]).map(r=>(r.frente||'').trim()).filter(Boolean))];
-          equipAll   = [...new Set((eq.data||[]).map(r=>(r.codigo_equipamento||'').trim()).filter(Boolean))];
+        try {
+          if (!filtrosRes.error && filtrosRes.data && filtrosRes.data.length > 0) {
+            frentesAll = filtrosRes.data.filter(r => r.tipo === 'frente').map(r => r.valor).filter(Boolean);
+            equipAll  = filtrosRes.data.filter(r => r.tipo === 'codigo_equipamento').map(r => r.valor).filter(Boolean);
+          }
+        } catch (_) {}
+        // Se RPC não trouxe dados, busca direto na tabela
+        if (frentesAll.length === 0 || equipAll.length === 0) {
+          try {
+            const [fr, eq] = await Promise.all([
+              state.supabase.from(TABLE_NAME).select('frente').not('frente','is',null).neq('frente','').limit(10000),
+              state.supabase.from(TABLE_NAME).select('codigo_equipamento').not('codigo_equipamento','is',null).neq('codigo_equipamento','').limit(10000)
+            ]);
+            if (frentesAll.length === 0) frentesAll = [...new Set((fr.data||[]).map(r=>(r.frente||'').trim()).filter(Boolean))];
+            if (equipAll.length === 0)   equipAll   = [...new Set((eq.data||[]).map(r=>(r.codigo_equipamento||'').trim()).filter(Boolean))];
+          } catch (_) {}
         }
 
         const metaRows = maxDate ? [{ d: maxDate, f: '', e: '', m: '' }] : [];
@@ -1220,17 +1226,17 @@
 
       setProgress(20);
       // 1) tenta RPC agregado
-      const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', {
-        p_data_inicio: minDate, p_data_fim: maxDate,
-        p_equipamentos: equipArr, p_frentes: frentArr
-      });
-      if (!error) {
-        setProgress(70);
-        return normalizeRpcRows(data || []);
-      }
-      // 2) fallback: busca direta paginada (funciona bem em bases menores)
-      const isNotFound = error.code === 'PGRST202' || /resumo_linha_do_tempo|not exist|schema cache/i.test(error.message || '');
-      if (!isNotFound && !/timeout|canceling/i.test(error.message || '')) throw error;
+      try {
+        const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', {
+          p_data_inicio: minDate, p_data_fim: maxDate,
+          p_equipamentos: equipArr, p_frentes: frentArr
+        });
+        if (!error && data && data.length > 0) {
+          setProgress(70);
+          return normalizeRpcRows(data);
+        }
+      } catch (_) { /* ignora, cai para fallback */ }
+      // 2) fallback: busca direta paginada
       return await fetchRawRows(minDate, maxDate, equipArr, frentArr);
     }
 
