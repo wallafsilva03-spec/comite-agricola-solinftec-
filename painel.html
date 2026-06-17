@@ -1120,23 +1120,34 @@
       setProgress(10);
       clearFetchCache();
       try {
-        // Busca em paralelo: datas (amostra recente) + todos os valores distintos de frente e equipamento
-        const [dateRes, frenteRes, equipRes] = await Promise.all([
+        // Busca em paralelo: datas + valores distintos de frente/equipamento via RPC
+        const [dateRes, oldestRes, filtrosRes] = await Promise.all([
           state.supabase.from(TABLE_NAME).select('data').order('data', { ascending: false }).limit(1),
-          state.supabase.from(TABLE_NAME).select('frente').not('frente', 'is', null).neq('frente', '').limit(5000),
-          state.supabase.from(TABLE_NAME).select('equipamento').not('equipamento', 'is', null).neq('equipamento', '').limit(5000)
+          state.supabase.from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1),
+          state.supabase.rpc('get_filtros_linha_do_tempo')
         ]);
         if (dateRes.error) throw dateRes.error;
 
-        const { data: oldest } = await state.supabase
-          .from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1);
-
         const maxDate = dateRes.data?.[0]?.data || null;
-        const minDate = oldest?.data?.[0]?.data || maxDate;
-        const all = []; // mantido para compatibilidade de rowCount
-        const truncated = false;
+        const minDate = oldestRes.data?.[0]?.data || maxDate;
+
+        // Se RPC de filtros falhou, tenta busca direta (menos eficiente mas funciona)
+        let frentesAll = [], equipAll = [];
+        if (!filtrosRes.error && filtrosRes.data) {
+          frentesAll = filtrosRes.data.filter(r => r.tipo === 'frente').map(r => r.valor);
+          equipAll  = filtrosRes.data.filter(r => r.tipo === 'equipamento').map(r => r.valor);
+        } else {
+          // fallback: busca linhas e deduplica (pode ser incompleto em tabelas grandes)
+          const [fr, eq] = await Promise.all([
+            state.supabase.from(TABLE_NAME).select('frente').not('frente','is',null).neq('frente','').limit(5000),
+            state.supabase.from(TABLE_NAME).select('equipamento').not('equipamento','is',null).neq('equipamento','').limit(5000)
+          ]);
+          frentesAll = [...new Set((fr.data||[]).map(r=>(r.frente||'').trim()).filter(Boolean))];
+          equipAll   = [...new Set((eq.data||[]).map(r=>(r.equipamento||'').trim()).filter(Boolean))];
+        }
 
         const metaRows = maxDate ? [{ d: maxDate, f: '', e: '', m: '' }] : [];
+        const truncated = false;
 
         state.metaRows = metaRows;
         state.rows = [];
@@ -1146,8 +1157,8 @@
         state.minDate = minDate;
         state.maxDate = maxDate;
 
-        state.allFront = uniqueSorted([...new Set((frenteRes.data || []).map(r => (r.frente || '').trim()).filter(Boolean))]);
-        state.allEquip = uniqueSorted([...new Set((equipRes.data || []).map(r => (r.equipamento || '').trim()).filter(Boolean))]);
+        state.allFront = uniqueSorted(frentesAll);
+        state.allEquip = uniqueSorted(equipAll);
         state.allModel = state.allEquip;
         console.log('[DIAG META] frentes encontradas:', state.allFront.length, state.allFront.slice(0,5));
         console.log('[DIAG META] equipamentos encontrados:', state.allEquip.length, state.allEquip.slice(0,3));
