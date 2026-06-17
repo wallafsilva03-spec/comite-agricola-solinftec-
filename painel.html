@@ -1142,20 +1142,17 @@
         let from = 0;
         let all = [];
         while (true) {
-          let q = state.supabase
+          const { data, error } = await state.supabase
             .from(TABLE_NAME)
             .select('data, frente, equipamento, modelo')
             .order('data', { ascending: true })
             .range(from, from + pageSize - 1);
-          q = applyClassEquipFilter(q);
-          const { data, error } = await q;
           if (error) throw error;
           all = all.concat(data || []);
           setProgress(10 + Math.min(80, all.length / 50));
           if (!data || data.length < pageSize) break;
           from += pageSize;
         }
-        all = applyClassEquipClientSide(all);
 
         const metaRows = [];
         let minDate = null;
@@ -1209,9 +1206,10 @@
 
         setStatus(`Metadados carregados: ${state.rowCount.toLocaleString('pt-BR')} registros. Período da base: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
       } catch (err) {
-        console.error(err);
+        console.error('loadDataFromSupabase error:', err);
         setConnStatus('Erro na conexão', 'err');
-        setStatus(`Erro ao carregar dados do Supabase: ${err.message || err}`, true);
+        const detail = err?.message || err?.error_description || JSON.stringify(err) || 'erro desconhecido';
+        setStatus(`Erro ao carregar dados: ${detail}`, true);
         setProgress(0);
       }
     }
