@@ -1240,37 +1240,22 @@
       const allEnds = periods.map(p => p.end).filter(Boolean).sort();
       const minDate = allStarts[0];
       const maxDate = allEnds[allEnds.length - 1];
-      const pageSize = 1000;
-      let lastId = 0;
-      let all = [];
-      // Paginação por cursor (id) evita OFFSET lento em tabelas grandes
-      while (true) {
-        let query = state.supabase
-          .from(TABLE_NAME)
-          .select('id, data, frente, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
-          .gte('data', minDate)
-          .lte('data', maxDate)
-          .gt('id', lastId)
-          .order('id', { ascending: true })
-          .limit(pageSize);
-        if (filters.mode === 'equip' && filters.equip.size > 0) {
-          query = query.in('equipamento', [...filters.equip]);
-        } else if (filters.mode === 'front' && filters.front.size > 0) {
-          query = query.in('frente', [...filters.front]);
-        }
-        const { data, error } = await query;
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        all = all.concat(data);
-        lastId = data[data.length - 1].id;
-        setProgress(10 + Math.min(75, Math.floor(all.length / 200)));
-        if (data.length < pageSize) break;
-      }
-      // Filtro de classificação de equipamento (client-side)
-      all = applyClassEquipClientSide(all);
+
+      setProgress(20);
+      const params = {
+        p_data_inicio: minDate,
+        p_data_fim: maxDate,
+        p_equipamentos: (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip] : null,
+        p_frentes: (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front] : null
+      };
+      const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', params);
+      if (error) throw error;
+      setProgress(70);
+
+      let all = applyClassEquipClientSide(data || []);
       const rows = [];
       for (const r of all) {
-        const horas = calcHoras(r.hora_inicial, r.hora_final);
+        const horas = Number(r.total_horas);
         if (!isFinite(horas) || horas < 0) continue;
         const classificacao = normText(r.classificacao);
         let atividade = normText(r.atividade);
