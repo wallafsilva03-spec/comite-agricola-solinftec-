@@ -1131,19 +1131,18 @@
         const maxDate = dateRes.data?.[0]?.data || null;
         const minDate = oldestRes.data?.[0]?.data || maxDate;
 
-        // Se RPC de filtros falhou, tenta busca direta (menos eficiente mas funciona)
+        // Se RPC de filtros falhou, tenta busca direta
         let frentesAll = [], equipAll = [];
         if (!filtrosRes.error && filtrosRes.data) {
           frentesAll = filtrosRes.data.filter(r => r.tipo === 'frente').map(r => r.valor);
-          equipAll  = filtrosRes.data.filter(r => r.tipo === 'equipamento').map(r => r.valor);
+          equipAll  = filtrosRes.data.filter(r => r.tipo === 'codigo_equipamento').map(r => r.valor);
         } else {
-          // fallback: busca linhas e deduplica (pode ser incompleto em tabelas grandes)
           const [fr, eq] = await Promise.all([
             state.supabase.from(TABLE_NAME).select('frente').not('frente','is',null).neq('frente','').limit(5000),
-            state.supabase.from(TABLE_NAME).select('equipamento').not('equipamento','is',null).neq('equipamento','').limit(5000)
+            state.supabase.from(TABLE_NAME).select('codigo_equipamento').not('codigo_equipamento','is',null).neq('codigo_equipamento','').limit(5000)
           ]);
           frentesAll = [...new Set((fr.data||[]).map(r=>(r.frente||'').trim()).filter(Boolean))];
-          equipAll   = [...new Set((eq.data||[]).map(r=>(r.equipamento||'').trim()).filter(Boolean))];
+          equipAll   = [...new Set((eq.data||[]).map(r=>(r.codigo_equipamento||'').trim()).filter(Boolean))];
         }
 
         const metaRows = maxDate ? [{ d: maxDate, f: '', e: '', m: '' }] : [];
@@ -1247,7 +1246,7 @@
         if (!classificacao || !atividade || !r.data) continue;
         rows.push({
           d: r.data, f: (r.frente || '').toString().trim(),
-          e: (r.equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
+          e: (r.codigo_equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
           c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
           a: atividade, h: horas
         });
@@ -1262,11 +1261,11 @@
       while (true) {
         let query = state.supabase
           .from(TABLE_NAME)
-          .select('data, frente, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
+          .select('data, frente, codigo_equipamento, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
           .gte('data', minDate).lte('data', maxDate)
           .order('data', { ascending: true })
           .range(from, from + pageSize - 1);
-        if (equipArr) query = query.in('equipamento', equipArr);
+        if (equipArr) query = query.in('codigo_equipamento', equipArr);
         else if (frentArr) query = query.in('frente', frentArr);
         const { data, error } = await query;
         if (error) throw error;
@@ -1285,7 +1284,7 @@
           if (!classificacao || !atividade || !r.data) continue;
           rows.push({
             d: r.data, f: (r.frente || '').toString().trim(),
-            e: (r.equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
+            e: (r.codigo_equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
             c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
             a: atividade, h: horas
           });
