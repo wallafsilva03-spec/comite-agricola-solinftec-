@@ -769,7 +769,16 @@
         <div class="filters-horizontal">
           <div class="control-card">
             <h3>Tipo de análise</h3>
-            <span class="label">Filtro principal</span>
+            <span class="label" style="color:#b42318;font-weight:900">⚡ Tipo de equipamento (filtra na API)</span>
+            <div class="segmented" role="group" style="flex-wrap:wrap;gap:4px">
+              <button id="ceAll"   class="active" type="button" data-ce="">Todos</button>
+              <button id="ceComb"  class="ce-btn"  type="button" data-ce="COLHED">Colhedora</button>
+              <button id="ceTrat"  class="ce-btn"  type="button" data-ce="TRATOR_TRANS">Trator / Transbordo</button>
+              <button id="ceCam"   class="ce-btn"  type="button" data-ce="CAMINHA">Caminhão</button>
+            </div>
+            <span class="hint">Selecionar um tipo reduz drasticamente o volume de dados buscados.</span>
+
+            <span class="label" style="margin-top:10px">Filtro de exibição</span>
             <div class="segmented" role="group">
               <button id="modeEquip" class="active" type="button">Frota</button>
               <button id="modeFront" type="button">Frente</button>
@@ -977,7 +986,7 @@
   </div><!-- /app (moved here) -->
 
   <script>
-    const TABLE_NAME = 'apontamentos';
+    const TABLE_NAME = 'linha_do_tempo';
 
     const state = {
       rowsLoaded: false,
@@ -995,7 +1004,8 @@
       lastResult: null,
       calcSeq: 0,
       supabase: null,
-      channel: null
+      channel: null,
+      classEquip: ''
     };
 
     const $ = (id) => document.getElementById(id);
@@ -1015,6 +1025,24 @@
         connectSupabase(url, key);
       });
       $('refreshBtn').addEventListener('click', () => loadDataFromSupabase());
+      // Tipo de equipamento — filtra direto na API
+      document.querySelectorAll('[data-ce]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.classEquip = btn.dataset.ce;
+          localStorage.setItem('painel_class_equip', btn.dataset.ce);
+          document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          updateFilterSummary();
+          maybeAutoCalc();
+        });
+      });
+      // Restaura seleção do localStorage (limpa valores inválidos de versões antigas)
+      const validCeValues = ['', 'COLHED', 'TRATOR_TRANS', 'CAMINHA'];
+      let savedCe = localStorage.getItem('painel_class_equip') || '';
+      if (!validCeValues.includes(savedCe)) { savedCe = ''; localStorage.removeItem('painel_class_equip'); }
+      state.classEquip = savedCe;
+      const ceBtn = document.querySelector(`[data-ce="${savedCe}"]`);
+      if (ceBtn) { document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active')); ceBtn.classList.add('active'); }
       $('modeEquip').addEventListener('click', () => setMode('equip'));
       $('modeFront').addEventListener('click', () => setMode('front'));
       $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
@@ -1059,6 +1087,26 @@
       $('connStatus').innerHTML = `<span id="connDot" class="dot ${kind || ''}"></span> ${text}`;
     }
 
+    function calcHoras(ini, fim) {
+      if (!ini || !fim) return 0;
+      const a = new Date(ini), b = new Date(fim);
+      if (isNaN(a) || isNaN(b)) return 0;
+      const diff = (b - a) / 3600000;
+      return diff < 0 ? diff + 24 : diff; // atravessa meia-noite
+    }
+
+    function applyClassEquipClientSide(rows) {
+      const ce = state.classEquip;
+      if (!ce) return rows;
+      return rows.filter(r => {
+        const cls = classifyEquip(r.modelo || r.m || '');
+        if (ce === 'TRATOR_TRANS') return cls === 'TRATOR' || cls === 'TRANSBORDO';
+        if (ce === 'COLHED') return cls === 'COLHEDORA';
+        if (ce === 'CAMINHA') return cls === 'CAMINHAO';
+        return true;
+      });
+    }
+
     function connectSupabase(url, key) {
       try {
         state.supabase = supabase.createClient(url, key);
@@ -1093,31 +1141,25 @@
       if (!silent) setStatus('Carregando metadados do Supabase...', false);
       setProgress(10);
       try {
+        // Busca apenas as colunas mínimas para popular filtros, sem paginação infinita
+        // Limita a 5000 registros para não sobrecarregar a API
+        const META_LIMIT = 5000;
         const pageSize = 1000;
-        // Get total count first so we can fetch all pages in parallel
-        const { count, error: countErr } = await state.supabase
-          .from(TABLE_NAME)
-          .select('*', { count: 'exact', head: true });
-        if (countErr) throw countErr;
-        setProgress(20);
-        const numPages = count > 0 ? Math.ceil(count / pageSize) : 1;
-        const pagePromises = [];
-        for (let i = 0; i < numPages; i++) {
-          pagePromises.push(
-            state.supabase
-              .from(TABLE_NAME)
-              .select('data, frente, equipamento, modelo')
-              .order('data', { ascending: true })
-              .range(i * pageSize, (i + 1) * pageSize - 1)
-          );
-        }
-        const pageResults = await Promise.all(pagePromises);
+        let from = 0;
         let all = [];
-        for (const { data, error } of pageResults) {
+        while (all.length < META_LIMIT) {
+          const { data, error } = await state.supabase
+            .from(TABLE_NAME)
+            .select('data, frente, equipamento')
+            .order('data', { ascending: false })
+            .range(from, from + pageSize - 1);
           if (error) throw error;
           all = all.concat(data || []);
+          setProgress(10 + Math.min(80, (all.length / META_LIMIT) * 80));
+          if (!data || data.length < pageSize) break;
+          from += pageSize;
         }
-        setProgress(75);
+        const truncated = all.length >= META_LIMIT;
 
         const metaRows = [];
         let minDate = null;
@@ -1128,10 +1170,16 @@
             d: r.data,
             f: (r.frente || '').toString().trim(),
             e: (r.equipamento || '').toString().trim(),
-            m: (r.modelo || '').toString().trim(),
+            m: (r.equipamento || '').toString().trim(),
           });
           if (!minDate || r.data < minDate) minDate = r.data;
           if (!maxDate || r.data > maxDate) maxDate = r.data;
+        }
+        // Se truncou, busca o registro mais antigo para saber o minDate real
+        if (truncated) {
+          const { data: oldest } = await state.supabase
+            .from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1);
+          if (oldest && oldest[0]) minDate = oldest[0].data;
         }
 
         state.metaRows = metaRows;
@@ -1161,7 +1209,8 @@
         setProgress(100);
         setTimeout(() => setProgress(0), 700);
         setConnStatus('Conectado', 'ok');
-        $('fileMeta').textContent = `Tabela "${TABLE_NAME}" — ${state.rowCount.toLocaleString('pt-BR')} registros encontrados.`;
+        const truncNote = truncated ? ' (amostra — tabela maior)' : '';
+        $('fileMeta').textContent = `Tabela "${TABLE_NAME}" — ${state.rowCount.toLocaleString('pt-BR')} registros carregados${truncNote}.`;
 
         if (!metaRows.length) {
           setStatus('Conectei no Supabase, mas a tabela ainda não tem dados. Insira dados no Table Editor.', true);
@@ -1169,11 +1218,14 @@
           return;
         }
 
-        setStatus(`Metadados carregados: ${state.rowCount.toLocaleString('pt-BR')} registros. Período da base: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
+        setStatus(`Conectado${truncNote}. Período: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
       } catch (err) {
-        console.error(err);
+        console.error('loadDataFromSupabase error:', err);
         setConnStatus('Erro na conexão', 'err');
-        setStatus(`Erro ao carregar dados do Supabase: ${err.message || err}`, true);
+        const detail = err?.message || err?.error_description || err?.hint || err?.details || (typeof err === 'string' ? err : JSON.stringify(err)) || 'erro desconhecido';
+        const code = err?.code ? ` [código: ${err.code}]` : '';
+        const status = err?.status ? ` [HTTP ${err.status}]` : '';
+        setStatus(`Erro ao carregar dados${status}${code}: ${detail}`, true);
         setProgress(0);
       }
     }
@@ -1184,49 +1236,35 @@
       const minDate = allStarts[0];
       const maxDate = allEnds[allEnds.length - 1];
       const pageSize = 1000;
-      // Get count for this filtered range first, then fetch in parallel
-      let countQuery = state.supabase
-        .from(TABLE_NAME)
-        .select('*', { count: 'exact', head: true })
-        .gte('data', minDate)
-        .lte('data', maxDate);
-      if (filters.mode === 'equip' && filters.equip.size > 0) {
-        countQuery = countQuery.in('equipamento', [...filters.equip]);
-      } else if (filters.mode === 'front' && filters.front.size > 0) {
-        countQuery = countQuery.in('frente', [...filters.front]);
-      }
-      const { count, error: countErr } = await countQuery;
-      if (countErr) throw countErr;
-      setProgress(20);
-      const numPages = count > 0 ? Math.ceil(count / pageSize) : 1;
-      const pagePromises = [];
-      for (let i = 0; i < numPages; i++) {
+      let from = 0;
+      let all = [];
+      while (true) {
         let query = state.supabase
           .from(TABLE_NAME)
-          .select('data, frente, equipamento, modelo, classificacao_ativ, cd_atividade, atividade, tempo_decimal')
+          .select('data, frente, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
           .gte('data', minDate)
           .lte('data', maxDate)
           .order('data', { ascending: true })
-          .range(i * pageSize, (i + 1) * pageSize - 1);
+          .range(from, from + pageSize - 1);
         if (filters.mode === 'equip' && filters.equip.size > 0) {
           query = query.in('equipamento', [...filters.equip]);
         } else if (filters.mode === 'front' && filters.front.size > 0) {
           query = query.in('frente', [...filters.front]);
         }
-        pagePromises.push(query);
-      }
-      const pageResults = await Promise.all(pagePromises);
-      let all = [];
-      for (const { data, error } of pageResults) {
+        const { data, error } = await query;
         if (error) throw error;
         all = all.concat(data || []);
+        setProgress(10 + Math.min(75, Math.floor(all.length / 200)));
+        if (!data || data.length < pageSize) break;
+        from += pageSize;
       }
-      setProgress(75);
+      // Filtro de classificação de equipamento (client-side)
+      all = applyClassEquipClientSide(all);
       const rows = [];
       for (const r of all) {
-        const horas = Number(r.tempo_decimal);
+        const horas = calcHoras(r.hora_inicial, r.hora_final);
         if (!isFinite(horas) || horas < 0) continue;
-        const classificacao = normText(r.classificacao_ativ);
+        const classificacao = normText(r.classificacao);
         let atividade = normText(r.atividade);
         if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
         if (!classificacao || !atividade || !r.data) continue;
@@ -1234,9 +1272,9 @@
           d: r.data,
           f: (r.frente || '').toString().trim(),
           e: (r.equipamento || '').toString().trim(),
-          m: (r.modelo || '').toString().trim(),
+          m: (r.equipamento || '').toString().trim(),
           c: classificacao,
-          cd: (r.cd_atividade || '').toString().trim(),
+          cd: (r.codigo_operacao || '').toString().trim(),
           a: atividade,
           h: horas
         });
@@ -1360,7 +1398,9 @@
     }
 
     function updateFilterSummary() {
-      $('filterSummary').textContent = getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
+      const ceMap = { '':'Todos os equip.', 'COLHED':'Colhedora', 'TRATOR_TRANS':'Trator/Transbordo', 'CAMINHA':'Caminhão' };
+      const ceLabel = ceMap[state.classEquip] || state.classEquip;
+      $('filterSummary').textContent = `[${ceLabel}] ` + getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
     }
 
     function getSelectionText() {
@@ -1517,7 +1557,12 @@
         setTimeout(() => setProgress(0), 400);
       } catch (err) {
         console.error(err);
-        setStatus(`Erro ao calcular: ${err.message || err}`, true);
+        const msg = err.message || String(err);
+        const isTimeout = msg.includes('timeout') || msg.includes('canceling');
+        const hint = isTimeout
+          ? ' ⚠️ Timeout: crie um índice no Supabase — SQL Editor → CREATE INDEX IF NOT EXISTS idx_linha_do_tempo_data ON linha_do_tempo (data);'
+          : '';
+        setStatus(`Erro ao calcular: ${msg}${hint}`, true);
         setProgress(0);
       }
     }
