@@ -773,9 +773,8 @@
             <div class="segmented" role="group" style="flex-wrap:wrap;gap:4px">
               <button id="ceAll"   class="active" type="button" data-ce="">Todos</button>
               <button id="ceComb"  class="ce-btn"  type="button" data-ce="COLHED">Colhedora</button>
-              <button id="ceTrans" class="ce-btn"  type="button" data-ce="TRANSBORDO">Transbordo</button>
+              <button id="ceTrat"  class="ce-btn"  type="button" data-ce="TRATOR_TRANS">Trator / Transbordo</button>
               <button id="ceCam"   class="ce-btn"  type="button" data-ce="CAMINHA">Caminhão</button>
-              <button id="ceTrat"  class="ce-btn"  type="button" data-ce="TRATOR">Trator</button>
             </div>
             <span class="hint">Selecionar um tipo reduz drasticamente o volume de dados buscados.</span>
 
@@ -1089,6 +1088,9 @@
       const ce = state.classEquip;
       if (!ce) return query;
       localStorage.setItem('painel_class_equip', ce);
+      if (ce === 'TRATOR_TRANS') {
+        return query.or('modelo.ilike.%TRATOR%,modelo.ilike.%TRANSBORDO%');
+      }
       return query.ilike('modelo', `%${ce}%`);
     }
 
@@ -1197,8 +1199,10 @@
         setStatus(`Metadados carregados: ${state.rowCount.toLocaleString('pt-BR')} registros. Período da base: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
       } catch (err) {
         console.error(err);
-        setConnStatus('Erro na conexão', 'err');
-        setStatus(`Erro ao carregar dados do Supabase: ${err.message || err}`, true);
+        const msg = err.message || String(err);
+        const isNetErr = msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network') || msg.toLowerCase().includes('failed');
+        if (isNetErr) setConnStatus('Erro na conexão', 'err');
+        setStatus(`Erro ao carregar dados: ${msg}`, true);
         setProgress(0);
       }
     }
@@ -1370,7 +1374,7 @@
     }
 
     function updateFilterSummary() {
-      const ceMap = { '':'Todos os equip.', 'COLHED':'Colhedora', 'TRANSBORDO':'Transbordo', 'CAMINHA':'Caminhão', 'TRATOR':'Trator' };
+      const ceMap = { '':'Todos os equip.', 'COLHED':'Colhedora', 'TRATOR_TRANS':'Trator/Transbordo', 'CAMINHA':'Caminhão' };
       const ceLabel = ceMap[state.classEquip] || state.classEquip;
       $('filterSummary').textContent = `[${ceLabel}] ` + getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
     }
