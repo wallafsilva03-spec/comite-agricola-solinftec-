@@ -1572,7 +1572,8 @@
         const base = calculated[3] || calculated[1] || null;
         const baseOffendersNoMaintenance = base ? base.offenderNoMaintenanceList.slice(0, 10) : [];
         const baseOffendersMaintenance   = base ? base.offenderMaintenanceList.slice(0, 10)   : [];
-        const result = { periods, labels: ['Período 1','Período 2','Período 3','Período 4'], calculated, baseOffendersNoMaintenance, baseOffendersMaintenance };
+        const equipSet = new Set(calcRows.map(r => r.e).filter(Boolean));
+        const result = { periods, labels: ['Período 1','Período 2','Período 3','Período 4'], calculated, baseOffendersNoMaintenance, baseOffendersMaintenance, nEquip: equipSet.size };
 
         state.lastResult = result;
         renderResults(result);
@@ -1603,11 +1604,12 @@
 
     function renderResults(result) {
       const selectionText = getSelectionText();
-      setStatus(`Comparação calculada. Filtro aplicado: ${selectionText}. Base dos ofensores: Período 2. Apenas ofensores improdutivos exibidos.`, false);
-      renderComparisonTable(result.calculated, result.baseOffendersNoMaintenance, result.baseOffendersMaintenance, result.periods);
+      const n = result.nEquip || 0;
+      setStatus(`Comparação calculada — ${n} equipamento${n!==1?'s':''} no período. Filtro: ${selectionText}.`, false);
+      renderComparisonTable(result.calculated, result.baseOffendersNoMaintenance, result.baseOffendersMaintenance, result.periods, result.nEquip);
     }
 
-    function renderComparisonTable(calculatedAll, baseOffendersNoMaintenance, baseOffendersMaintenance, periodsAll) {
+    function renderComparisonTable(calculatedAll, baseOffendersNoMaintenance, baseOffendersMaintenance, periodsAll, nEquip) {
       const skipP1 = $('skipP1Toggle').checked;
       const calculated = skipP1 ? calculatedAll.slice(1) : calculatedAll;
       const periods    = skipP1 ? periodsAll.slice(1)    : periodsAll;
@@ -1687,7 +1689,8 @@
           </div>`;
       }).join('');
 
-      $('resultTable').innerHTML = mainHtml + `
+      const equipBadge = nEquip > 0 ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><span style="background:#063f58;color:#fff;font-size:13px;font-weight:800;padding:5px 14px;border-radius:20px;letter-spacing:.3px">🚜 ${nEquip} equipamento${nEquip!==1?'s':''}</span></div>` : '';
+      $('resultTable').innerHTML = equipBadge + mainHtml + `
         <div style="margin-top:32px;padding:0 2px">
           <div style="font-size:17px;font-weight:900;color:var(--ink);margin-bottom:2px">Ofensores improdutivos por período</div>
           <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Classificação: IMPRODUTIVO — ordenado por horas (maior → menor).</div>
