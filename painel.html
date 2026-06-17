@@ -1035,8 +1035,10 @@
           loadDataFromSupabase();
         });
       });
-      // Restaura seleção do localStorage
-      const savedCe = localStorage.getItem('painel_class_equip') || '';
+      // Restaura seleção do localStorage (limpa valores inválidos de versões antigas)
+      const validCeValues = ['', 'COLHED', 'TRATOR_TRANS', 'CAMINHA'];
+      let savedCe = localStorage.getItem('painel_class_equip') || '';
+      if (!validCeValues.includes(savedCe)) { savedCe = ''; localStorage.removeItem('painel_class_equip'); }
       state.classEquip = savedCe;
       const ceBtn = document.querySelector(`[data-ce="${savedCe}"]`);
       if (ceBtn) { document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active')); ceBtn.classList.add('active'); }
@@ -1086,12 +1088,20 @@
 
     function applyClassEquipFilter(query) {
       const ce = state.classEquip;
-      if (!ce) return query;
-      localStorage.setItem('painel_class_equip', ce);
-      if (ce === 'TRATOR_TRANS') {
-        return query.or('modelo.ilike.%TRATOR%,modelo.ilike.%TRANSBORDO%');
-      }
+      if (!ce || ce === 'TRATOR_TRANS') return query; // TRATOR_TRANS é filtrado client-side
       return query.ilike('modelo', `%${ce}%`);
+    }
+
+    function applyClassEquipClientSide(rows) {
+      const ce = state.classEquip;
+      if (!ce) return rows;
+      if (ce === 'TRATOR_TRANS') {
+        return rows.filter(r => {
+          const m = normText(r.modelo || r.m || '');
+          return m.includes('TRATOR') || m.includes('TRANSBORDO');
+        });
+      }
+      return rows; // demais já foram filtrados no servidor
     }
 
     function connectSupabase(url, key) {
@@ -1145,6 +1155,7 @@
           if (!data || data.length < pageSize) break;
           from += pageSize;
         }
+        all = applyClassEquipClientSide(all);
 
         const metaRows = [];
         let minDate = null;
@@ -1199,10 +1210,8 @@
         setStatus(`Metadados carregados: ${state.rowCount.toLocaleString('pt-BR')} registros. Período da base: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
       } catch (err) {
         console.error(err);
-        const msg = err.message || String(err);
-        const isNetErr = msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network') || msg.toLowerCase().includes('failed');
-        if (isNetErr) setConnStatus('Erro na conexão', 'err');
-        setStatus(`Erro ao carregar dados: ${msg}`, true);
+        setConnStatus('Erro na conexão', 'err');
+        setStatus(`Erro ao carregar dados do Supabase: ${err.message || err}`, true);
         setProgress(0);
       }
     }
@@ -1236,6 +1245,7 @@
         if (!data || data.length < pageSize) break;
         from += pageSize;
       }
+      all = applyClassEquipClientSide(all);
       const rows = [];
       for (const r of all) {
         const horas = Number(r.tempo_decimal);
