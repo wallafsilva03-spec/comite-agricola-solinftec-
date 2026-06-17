@@ -769,15 +769,6 @@
         <div class="filters-horizontal">
           <div class="control-card">
             <h3>Tipo de análise</h3>
-            <span class="label" style="color:#b42318;font-weight:900">⚡ Tipo de equipamento (filtra na API)</span>
-            <div class="segmented" role="group" style="flex-wrap:wrap;gap:4px">
-              <button id="ceAll"   class="active" type="button" data-ce="">Todos</button>
-              <button id="ceComb"  class="ce-btn"  type="button" data-ce="COLHED">Colhedora</button>
-              <button id="ceTrat"  class="ce-btn"  type="button" data-ce="TRATOR_TRANS">Trator / Transbordo</button>
-              <button id="ceCam"   class="ce-btn"  type="button" data-ce="CAMINHA">Caminhão</button>
-            </div>
-            <span class="hint">Selecionar um tipo reduz drasticamente o volume de dados buscados.</span>
-
             <span class="label" style="margin-top:10px">Filtro de exibição</span>
             <div class="segmented" role="group">
               <button id="modeEquip" class="active" type="button">Frota</button>
@@ -1005,7 +996,7 @@
       calcSeq: 0,
       supabase: null,
       channel: null,
-      classEquip: ''
+      classEquip: '' /* unused, mantido para compatibilidade de cache-key */
     };
 
     const $ = (id) => document.getElementById(id);
@@ -1025,24 +1016,9 @@
         connectSupabase(url, key);
       });
       $('refreshBtn').addEventListener('click', () => loadDataFromSupabase());
-      // Tipo de equipamento — filtra direto na API
-      document.querySelectorAll('[data-ce]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          state.classEquip = btn.dataset.ce;
-          localStorage.setItem('painel_class_equip', btn.dataset.ce);
-          document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          updateFilterSummary();
-          maybeAutoCalc();
-        });
-      });
-      // Restaura seleção do localStorage (limpa valores inválidos de versões antigas)
-      const validCeValues = ['', 'COLHED', 'TRATOR_TRANS', 'CAMINHA'];
-      let savedCe = localStorage.getItem('painel_class_equip') || '';
-      if (!validCeValues.includes(savedCe)) { savedCe = ''; localStorage.removeItem('painel_class_equip'); }
-      state.classEquip = savedCe;
-      const ceBtn = document.querySelector(`[data-ce="${savedCe}"]`);
-      if (ceBtn) { document.querySelectorAll('[data-ce]').forEach(b => b.classList.remove('active')); ceBtn.classList.add('active'); }
+      // Tipo de equipamento — filtro visual (client-side)
+      localStorage.removeItem('painel_class_equip');
+      state.classEquip = '';
       $('modeEquip').addEventListener('click', () => setMode('equip'));
       $('modeFront').addEventListener('click', () => setMode('front'));
       $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
@@ -1089,7 +1065,9 @@
 
     function calcHoras(ini, fim) {
       if (!ini || !fim) return 0;
-      const a = new Date(ini), b = new Date(fim);
+      // Suporta timestamp completo ("2026-06-01T08:00:00") ou só hora ("08:00:00" / "08:00")
+      const toTs = s => /^\d{1,2}:\d{2}/.test(String(s)) ? `1970-01-01T${s}` : String(s);
+      const a = new Date(toTs(ini)), b = new Date(toTs(fim));
       if (isNaN(a) || isNaN(b)) return 0;
       const diff = (b - a) / 3600000;
       return diff < 0 ? diff + 24 : diff; // atravessa meia-noite
@@ -1140,26 +1118,17 @@
       }
       if (!silent) setStatus('Carregando metadados do Supabase...', false);
       setProgress(10);
+      clearFetchCache();
       try {
-        // Busca apenas as colunas mínimas para popular filtros, sem paginação infinita
-        // Limita a 5000 registros para não sobrecarregar a API
-        const META_LIMIT = 5000;
-        const pageSize = 1000;
-        let from = 0;
-        let all = [];
-        while (all.length < META_LIMIT) {
-          const { data, error } = await state.supabase
-            .from(TABLE_NAME)
-            .select('data, frente, equipamento')
-            .order('data', { ascending: false })
-            .range(from, from + pageSize - 1);
-          if (error) throw error;
-          all = all.concat(data || []);
-          setProgress(10 + Math.min(80, (all.length / META_LIMIT) * 80));
-          if (!data || data.length < pageSize) break;
-          from += pageSize;
-        }
-        const truncated = all.length >= META_LIMIT;
+        // Busca os 5000 registros mais recentes para popular filtros (query simples e rápida)
+        const { data: metaSample, error: metaErr } = await state.supabase
+          .from(TABLE_NAME)
+          .select('data, frente, equipamento')
+          .order('data', { ascending: false })
+          .limit(5000);
+        if (metaErr) throw metaErr;
+        const all = metaSample || [];
+        const truncated = all.length >= 5000;
 
         const metaRows = [];
         let minDate = null;
@@ -1175,7 +1144,7 @@
           if (!minDate || r.data < minDate) minDate = r.data;
           if (!maxDate || r.data > maxDate) maxDate = r.data;
         }
-        // Se truncou, busca o registro mais antigo para saber o minDate real
+        // Se truncou, busca a data mais antiga separadamente
         if (truncated) {
           const { data: oldest } = await state.supabase
             .from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1);
@@ -1230,55 +1199,112 @@
       }
     }
 
+    // Cache de buscas: evita re-consultar a API ao recalcular o mesmo período/filtro
+    const _fetchCache = new Map();
+    function clearFetchCache() { _fetchCache.clear(); }
+
     async function fetchRowsForCalc(periods, filters) {
       const allStarts = periods.map(p => p.start).filter(Boolean).sort();
       const allEnds = periods.map(p => p.end).filter(Boolean).sort();
       const minDate = allStarts[0];
       const maxDate = allEnds[allEnds.length - 1];
-      const pageSize = 1000;
-      let from = 0;
-      let all = [];
-      while (true) {
-        let query = state.supabase
-          .from(TABLE_NAME)
-          .select('data, frente, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
-          .gte('data', minDate)
-          .lte('data', maxDate)
-          .order('data', { ascending: true })
-          .range(from, from + pageSize - 1);
-        if (filters.mode === 'equip' && filters.equip.size > 0) {
-          query = query.in('equipamento', [...filters.equip]);
-        } else if (filters.mode === 'front' && filters.front.size > 0) {
-          query = query.in('frente', [...filters.front]);
-        }
-        const { data, error } = await query;
-        if (error) throw error;
-        all = all.concat(data || []);
-        setProgress(10 + Math.min(75, Math.floor(all.length / 200)));
-        if (!data || data.length < pageSize) break;
-        from += pageSize;
+
+      const eqKey = (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip].sort().join('|') : '';
+      const frKey = (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front].sort().join('|') : '';
+      const cacheKey = `${minDate}~${maxDate}~${filters.mode}~${eqKey}~${frKey}`;
+
+      let baseRows = _fetchCache.get(cacheKey);
+      if (!baseRows) {
+        baseRows = await fetchAndNormalize(minDate, maxDate, filters);
+        _fetchCache.set(cacheKey, baseRows);
+      } else {
+        setProgress(70);
       }
-      // Filtro de classificação de equipamento (client-side)
-      all = applyClassEquipClientSide(all);
+      // Filtro de tipo (Trator/Colhedora/...) é barato — aplicado fora do cache
+      return baseRows;
+    }
+
+    // Busca os dados e normaliza para {d,f,e,m,c,cd,a,h}.
+    // Tenta o RPC agregado (rápido); se indisponível, cai para busca direta paginada.
+    async function fetchAndNormalize(minDate, maxDate, filters) {
+      const equipArr = (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip] : null;
+      const frentArr = (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front] : null;
+
+      setProgress(20);
+      // 1) tenta RPC agregado
+      const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', {
+        p_data_inicio: minDate, p_data_fim: maxDate,
+        p_equipamentos: equipArr, p_frentes: frentArr
+      });
+      if (!error) {
+        setProgress(70);
+        return normalizeRpcRows(data || []);
+      }
+      // 2) fallback: busca direta paginada (funciona bem em bases menores)
+      const isNotFound = error.code === 'PGRST202' || /resumo_linha_do_tempo|not exist|schema cache/i.test(error.message || '');
+      if (!isNotFound && !/timeout|canceling/i.test(error.message || '')) throw error;
+      return await fetchRawRows(minDate, maxDate, equipArr, frentArr);
+    }
+
+    function normalizeRpcRows(data) {
       const rows = [];
-      for (const r of all) {
-        const horas = calcHoras(r.hora_inicial, r.hora_final);
+      for (const r of data) {
+        const horas = Number(r.total_horas);
         if (!isFinite(horas) || horas < 0) continue;
         const classificacao = normText(r.classificacao);
         let atividade = normText(r.atividade);
         if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
         if (!classificacao || !atividade || !r.data) continue;
         rows.push({
-          d: r.data,
-          f: (r.frente || '').toString().trim(),
-          e: (r.equipamento || '').toString().trim(),
-          m: (r.equipamento || '').toString().trim(),
-          c: classificacao,
-          cd: (r.codigo_operacao || '').toString().trim(),
-          a: atividade,
-          h: horas
+          d: r.data, f: (r.frente || '').toString().trim(),
+          e: (r.equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
+          c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
+          a: atividade, h: horas
         });
       }
+      return rows;
+    }
+
+    async function fetchRawRows(minDate, maxDate, equipArr, frentArr) {
+      const pageSize = 1000;
+      let from = 0;
+      const rows = [];
+      while (true) {
+        let query = state.supabase
+          .from(TABLE_NAME)
+          .select('data, frente, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
+          .gte('data', minDate).lte('data', maxDate)
+          .order('data', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (equipArr) query = query.in('equipamento', equipArr);
+        else if (frentArr) query = query.in('frente', frentArr);
+        const { data, error } = await query;
+        if (error) throw error;
+        // Diagnóstico: loga primeira linha para checar formato dos campos
+        if (from === 0 && data && data[0]) {
+          const s = data[0];
+          console.log('[DIAG] Primeira linha:', JSON.stringify({data:s.data, hora_inicial:s.hora_inicial, hora_final:s.hora_final, classificacao:s.classificacao, atividade:s.atividade}));
+          console.log('[DIAG] calcHoras teste:', calcHoras(s.hora_inicial, s.hora_final));
+        }
+        for (const r of (data || [])) {
+          const horas = calcHoras(r.hora_inicial, r.hora_final);
+          if (!isFinite(horas) || horas < 0) continue;
+          const classificacao = normText(r.classificacao);
+          let atividade = normText(r.atividade);
+          if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
+          if (!classificacao || !atividade || !r.data) continue;
+          rows.push({
+            d: r.data, f: (r.frente || '').toString().trim(),
+            e: (r.equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
+            c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
+            a: atividade, h: horas
+          });
+        }
+        setProgress(20 + Math.min(50, Math.floor((data || []).length ? from / 200 : 0)));
+        if (!data || data.length < pageSize) break;
+        from += pageSize;
+      }
+      setProgress(70);
       return rows;
     }
 
@@ -1398,9 +1424,7 @@
     }
 
     function updateFilterSummary() {
-      const ceMap = { '':'Todos os equip.', 'COLHED':'Colhedora', 'TRATOR_TRANS':'Trator/Transbordo', 'CAMINHA':'Caminhão' };
-      const ceLabel = ceMap[state.classEquip] || state.classEquip;
-      $('filterSummary').textContent = `[${ceLabel}] ` + getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
+      $('filterSummary').textContent = getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
     }
 
     function getSelectionText() {
