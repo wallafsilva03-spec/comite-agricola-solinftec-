@@ -640,17 +640,14 @@
       let total = 0;
       const op = normText($('opFilter').value);
       for (const p of state.periods) {
-        const tsStart = p.dStart ? new Date(p.dStart + 'T00:00:00').getTime() : null;
-        const tsEnd   = p.dEnd   ? new Date(p.dEnd   + 'T23:59:59').getTime() : null;
+        const hasDateFilter = !!(p.dStart || p.dEnd);
         for (const rows of periodSources(p)) {
           for (const r of rows) {
             if (op && !r.atividade.includes(op)) continue;
-            if (tsStart !== null || tsEnd !== null) {
+            if (hasDateFilter) {
               if (!r.data) continue;
-              const ts = new Date(r.data + 'T00:00:00').getTime();
-              if (isNaN(ts)) continue;
-              if (tsStart !== null && ts < tsStart) continue;
-              if (tsEnd !== null && ts > tsEnd) continue;
+              if (p.dStart && r.data < p.dStart) continue;
+              if (p.dEnd && r.data > p.dEnd) continue;
             }
             total++;
           }
@@ -692,18 +689,16 @@
       for (const r of ranges) buckets[r.idx] = { horas: 0, count: 0, velSum: 0, equip: new Set(), frentes: new Set() };
       let totalHoras = 0, totalCount = 0, totalVelSum = 0, foraFaixa = 0, semVel = 0;
       const allEquip = new Set();
-      const tsStart = dStart ? new Date(dStart + 'T00:00:00').getTime() : null;
-      const tsEnd   = dEnd   ? new Date(dEnd   + 'T23:59:59').getTime() : null;
+      // datas em AAAA-MM-DD (zero-padded) → comparação de string é correta e rápida
+      const hasDateFilter = !!(dStart || dEnd);
       for (const rows of sources) {
         if (!rows) continue;
         for (const row of rows) {
           if (op && !row.atividade.includes(op)) continue;
-          if (tsStart !== null || tsEnd !== null) {
+          if (hasDateFilter) {
             if (!row.data) continue;
-            const ts = new Date(row.data + 'T00:00:00').getTime();
-            if (isNaN(ts)) continue;
-            if (tsStart !== null && ts < tsStart) continue;
-            if (tsEnd !== null && ts > tsEnd) continue;
+            if (dStart && row.data < dStart) continue;
+            if (dEnd && row.data > dEnd) continue;
           }
           if (!isFinite(row.vel)) { semVel++; continue; }
           const idx = rangeOf(row.vel, ranges);
