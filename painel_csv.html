@@ -1002,6 +1002,18 @@
         try {
           const parsed = parseCSV(reader.result);
           const cm = buildColMap(parsed.header);
+          // Diagnóstico: loga a detecção de colunas e amostra de data
+          const sampleRaw = parsed.rows[0];
+          if (sampleRaw) {
+            const rawDate = sampleRaw[cm.data];
+            const normD   = normDate(rawDate);
+            console.log(`[CSV Base ${i+1}] Cabeçalho detectado:`, parsed.header);
+            console.log(`[CSV Base ${i+1}] Mapa de colunas: data=${cm.data}, hora_ini=${cm.hora_inicial}, hora_fim=${cm.hora_final}, atividade=${cm.atividade}, classificacao=${cm.classificacao}`);
+            console.log(`[CSV Base ${i+1}] Amostra data bruta: "${rawDate}" → normDate: "${normD}"`);
+            if (!normD) {
+              setStatus(`⚠️ Base ${i+1}: data bruta "${rawDate}" não reconhecida. Formatos aceitos: DD/MM/AAAA ou AAAA-MM-DD. Verifique a coluna de data no seu CSV.`, true);
+            }
+          }
           const normalized = [];
           for (const f of parsed.rows) {
             const r = normalizeRow(f, cm);
@@ -1209,6 +1221,12 @@
       let deslocamentoProdutivoHoras = 0;
       let count = 0;
 
+      // Diagnóstico de período — loga apenas no primeiro calcPeriod de cada cálculo
+      if (rows.length && period.start) {
+        const sample = rows.slice(0, 3).map(r => r.d);
+        const allDates = rows.map(r => r.d).filter(Boolean).sort();
+        console.log(`[calcPeriod] período: ${period.start} → ${period.end} | datas do CSV: ${allDates[0]} … ${allDates[allDates.length-1]} | amostra: ${sample}`);
+      }
       for (const row of rows) {
         if (!passesGlobalFilters(row, filters)) continue;
         if (row.d < period.start || row.d > period.end) continue;
