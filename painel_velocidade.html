@@ -481,11 +481,12 @@
           if (!state.bases[i].name || /^Base \d$/.test(state.bases[i].name)) {
             state.bases[i].name = file.name.replace(/\.csv$/i, '');
           }
-          // auto-preenche datas dos períodos que usam esta base e ainda estão vazios
+          // auto-preenche datas dos períodos que usam esta base (ou Geral) e ainda estão vazios
           state.periods.forEach(p => {
-            if (p.baseIdx === i && !p.dStart && !p.dEnd) {
-              p.dStart = state.bases[i].range.min || '';
-              p.dEnd = state.bases[i].range.max || '';
+            if ((p.baseIdx === i || p.baseIdx === -2) && !p.dStart && !p.dEnd) {
+              const rg = periodRange(p);
+              p.dStart = rg.min || '';
+              p.dEnd = rg.max || '';
             }
           });
           setProgress(100);
@@ -505,6 +506,30 @@
     function loadedBases() {
       return state.bases.map((b, i) => ({ b, i })).filter(x => x.b.rows);
     }
+    // linhas de um período: base específica ou "Geral" (-2 = todas as bases juntas)
+    function periodRows(p) {
+      if (p.baseIdx === -2) {
+        const all = [];
+        for (const b of state.bases) if (b.rows) all.push(...b.rows);
+        return all;
+      }
+      const base = state.bases[p.baseIdx];
+      return base && base.rows ? base.rows : null;
+    }
+    // intervalo de datas de um período (para auto-preencher)
+    function periodRange(p) {
+      if (p.baseIdx === -2) {
+        let min = null, max = null;
+        for (const b of state.bases) {
+          if (!b.rows || !b.range || !b.range.min) continue;
+          if (min === null || b.range.min < min) min = b.range.min;
+          if (max === null || b.range.max > max) max = b.range.max;
+        }
+        return { min, max };
+      }
+      const base = state.bases[p.baseIdx];
+      return base && base.range ? base.range : { min: null, max: null };
+    }
 
     function renderPeriods() {
       const avail = loadedBases();
@@ -513,10 +538,11 @@
         return;
       }
       $('periodsGrid').innerHTML = state.periods.map((p, i) => {
+        const geralOpt = `<option value="-2" ${p.baseIdx === -2 ? 'selected' : ''}>🌐 Geral (todas as bases)</option>`;
         const options = avail.map(x =>
           `<option value="${x.i}" ${p.baseIdx === x.i ? 'selected' : ''}>${escapeHtml(x.b.name)}</option>`
         ).join('');
-        const noneSel = !avail.some(x => x.i === p.baseIdx);
+        const noneSel = p.baseIdx !== -2 && !avail.some(x => x.i === p.baseIdx);
         return `
           <div class="file-card" style="border-top:4px solid ${PALETTE[i % 4]}">
             <h4 style="justify-content:space-between;display:flex">
@@ -527,6 +553,7 @@
             <label style="font-size:10px;font-weight:800;color:#475467;text-transform:uppercase;margin-top:2px">Base de dados</label>
             <select class="pbase" data-i="${i}" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:7px;font-size:13px;font-weight:700;outline:none;background:#fff">
               ${noneSel ? '<option value="-1" selected>— escolher —</option>' : ''}
+              ${geralOpt}
               ${options}
             </select>
             <div class="range-row" style="margin-top:2px">
@@ -542,9 +569,9 @@
         el.addEventListener('change', e => {
           const i = +e.target.dataset.i, bi = +e.target.value;
           state.periods[i].baseIdx = bi;
-          // ao trocar de base, repõe o intervalo de datas para o da base
-          const base = state.bases[bi];
-          if (base && base.range) { state.periods[i].dStart = base.range.min || ''; state.periods[i].dEnd = base.range.max || ''; }
+          // ao trocar de base, repõe o intervalo de datas
+          const rg = periodRange(state.periods[i]);
+          state.periods[i].dStart = rg.min || ''; state.periods[i].dEnd = rg.max || '';
           renderPeriods(); refreshHero();
         });
       });
@@ -606,9 +633,9 @@
       let total = 0;
       const op = normText($('opFilter').value);
       for (const p of state.periods) {
-        const base = state.bases[p.baseIdx];
-        if (!base || !base.rows) continue;
-        for (const r of base.rows) {
+        const rows = periodRows(p);
+        if (!rows) continue;
+        for (const r of rows) {
           if (op && !r.atividade.includes(op)) continue;
           if (p.dStart && r.data && r.data < p.dStart) continue;
           if (p.dEnd && r.data && r.data > p.dEnd) continue;
@@ -686,9 +713,9 @@
       if (!ranges.length) { setStatus('Defina pelo menos uma faixa de velocidade válida (máx > mín).', 'warn'); return; }
       const periods = [];
       state.periods.forEach((p, i) => {
-        const base = state.bases[p.baseIdx];
-        if (!base || !base.rows) return;
-        const calc = calcPeriod(base.rows, op, ranges, p.dStart, p.dEnd);
+        const rows = periodRows(p);
+        if (!rows || !rows.length) return;
+        const calc = calcPeriod(rows, op, ranges, p.dStart, p.dEnd);
         periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges, dStart: p.dStart, dEnd: p.dEnd });
       });
       if (!periods.length) { setStatus('Monte ao menos um período com uma base selecionada.', 'warn'); return; }
