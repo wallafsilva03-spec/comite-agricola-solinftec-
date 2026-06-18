@@ -207,7 +207,7 @@
 
     .filters-horizontal {
       display: grid;
-      grid-template-columns: 240px minmax(260px, 1fr) minmax(260px, 1fr) minmax(260px, 1fr);
+      grid-template-columns: 240px 1fr;
       gap: 12px;
       align-items: start;
     }
@@ -561,7 +561,7 @@
     }
 
     @media (max-width: 1250px) {
-      .filters-horizontal { grid-template-columns: 1fr 1fr; }
+      .filters-horizontal { grid-template-columns: 1fr; }
       .periods-grid { grid-template-columns: 1fr 1fr; }
       .cards { grid-template-columns: 1fr 1fr; }
     }
@@ -768,14 +768,8 @@
       <div class="panel-body">
         <div class="filters-horizontal">
           <div class="control-card">
-            <h3>Tipo de análise</h3>
-            <span class="label" style="margin-top:10px">Filtro de exibição</span>
-            <div class="segmented" role="group">
-              <button id="modeEquip" class="active" type="button">Frota</button>
-              <button id="modeFront" type="button">Frente</button>
-            </div>
-
-            <span class="label">Configuração avançada</span>
+            <h3>Configurações</h3>
+            <span class="label" style="margin-top:10px">Configuração avançada</span>
             <label class="switch-row">
               <input id="deslocToggle" type="checkbox" />
               <div>
@@ -790,26 +784,14 @@
                 <div class="switch-desc">Oculta o P1 da tabela, ofensores e PowerPoint.</div>
               </div>
             </label>
-            <span class="hint">O filtro escolhido será aplicado nos 4 períodos.</span>
           </div>
 
-          <div id="equipGroup" class="control-card">
-            <h3>Frota / Equipamento</h3>
-            <span class="label">Coluna Equipamento</span>
-            <div id="equipBox" class="multi-box"></div>
-          </div>
-
-          <div id="frontGroup" class="control-card hidden">
-            <h3>Frente</h3>
-            <span class="label">Coluna Frente</span>
-            <div id="frontBox" class="multi-box"></div>
-          </div>
-
-          <div id="modelGroup" class="control-card hidden">
-            <h3>Modelo</h3>
-            <span class="label">Modelo da frente</span>
-            <div id="modelBox" class="multi-box"></div>
-            <span class="hint">Se nenhum modelo for marcado, considera todos os modelos das frentes selecionadas.</span>
+          <div id="frontGroup" class="control-card" style="grid-column: span 3">
+            <h3>Filtro por Frente <span style="font-size:12px;font-weight:600;color:var(--muted)">(opcional)</span></h3>
+            <span class="label">Digite as frentes separadas por vírgula</span>
+            <input id="frenteFilterInput" type="text" placeholder="Ex: Frente 01, Frente 02, Frente 04"
+              style="width:100%;border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:14px;color:var(--ink);outline:none;margin-bottom:8px" />
+            <span class="hint">Deixe em branco para trazer todos os dados. Separe múltiplas frentes por vírgula.</span>
           </div>
         </div>
 
@@ -1019,8 +1001,7 @@
       // Tipo de equipamento — filtro visual (client-side)
       localStorage.removeItem('painel_class_equip');
       state.classEquip = '';
-      $('modeEquip').addEventListener('click', () => setMode('equip'));
-      $('modeFront').addEventListener('click', () => setMode('front'));
+      if ($('frenteFilterInput')) $('frenteFilterInput').addEventListener('input', () => updateFilterSummary());
       $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
       $('skipP1Toggle').addEventListener('change', () => maybeAutoCalc());
       $('calcBtn').addEventListener('click', calcComparison);
@@ -1116,85 +1097,24 @@
         setStatus('Configure a conexão com o Supabase para iniciar.', true);
         return;
       }
-      if (!silent) setStatus('Carregando metadados do Supabase...', false);
-      setProgress(10);
+      if (!silent) setStatus('Verificando conexão...', false);
+      setProgress(20);
       clearFetchCache();
       try {
-        // Busca os 5000 registros mais recentes para popular filtros (query simples e rápida)
-        const { data: metaSample, error: metaErr } = await state.supabase
-          .from(TABLE_NAME)
-          .select('data, frente, equipamento')
-          .order('data', { ascending: false })
-          .limit(5000);
-        if (metaErr) throw metaErr;
-        const all = metaSample || [];
-        const truncated = all.length >= 5000;
-
-        const metaRows = [];
-        let minDate = null;
-        let maxDate = null;
-        for (const r of all) {
-          if (!r.data) continue;
-          metaRows.push({
-            d: r.data,
-            f: (r.frente || '').toString().trim(),
-            e: (r.equipamento || '').toString().trim(),
-            m: (r.equipamento || '').toString().trim(),
-          });
-          if (!minDate || r.data < minDate) minDate = r.data;
-          if (!maxDate || r.data > maxDate) maxDate = r.data;
-        }
-        // Se truncou, busca a data mais antiga separadamente
-        if (truncated) {
-          const { data: oldest } = await state.supabase
-            .from(TABLE_NAME).select('data').order('data', { ascending: true }).limit(1);
-          if (oldest && oldest[0]) minDate = oldest[0].data;
-        }
-
-        state.metaRows = metaRows;
-        state.rows = [];
-        state.rowCount = metaRows.length;
-        state.rowsLoaded = metaRows.length > 0;
-        state.minDate = minDate;
-        state.maxDate = maxDate;
-
-        const equip = new Set(), front = new Set(), model = new Set();
-        for (const r of metaRows) {
-          if (r.e) equip.add(r.e);
-          if (r.f) front.add(r.f);
-          if (r.m) model.add(r.m);
-        }
-        state.allEquip = uniqueSorted([...equip]);
-        state.allFront = uniqueSorted([...front]);
-        state.allModel = uniqueSorted([...model]);
-
-        for (const v of [...state.selectedEquip]) if (!state.allEquip.includes(v)) state.selectedEquip.delete(v);
-        for (const v of [...state.selectedFront]) if (!state.allFront.includes(v)) state.selectedFront.delete(v);
-        for (const v of [...state.selectedModel]) if (!state.allModel.includes(v)) state.selectedModel.delete(v);
-
-        buildFilters();
-        if (!silent || !$('p1Start').value) setDefaultPeriods();
-        updateFilterSummary();
-        setProgress(100);
-        setTimeout(() => setProgress(0), 700);
+        // Só valida que a tabela existe — sem buscar frentes/equipamentos
+        const { error } = await state.supabase.from(TABLE_NAME).select('data').limit(1);
+        if (error) throw error;
+        state.rowsLoaded = true;
         setConnStatus('Conectado', 'ok');
-        const truncNote = truncated ? ' (amostra — tabela maior)' : '';
-        $('fileMeta').textContent = `Tabela "${TABLE_NAME}" — ${state.rowCount.toLocaleString('pt-BR')} registros carregados${truncNote}.`;
-
-        if (!metaRows.length) {
-          setStatus('Conectei no Supabase, mas a tabela ainda não tem dados. Insira dados no Table Editor.', true);
-          hideResults();
-          return;
-        }
-
-        setStatus(`Conectado${truncNote}. Período: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}. Configure os períodos e clique em Calcular.`, false);
+        $('fileMeta').textContent = `Conectado à tabela "${TABLE_NAME}". Configure as datas e clique em Calcular.`;
+        setStatus('Conectado. Configure os períodos, filtre por frente se quiser, e clique em Calcular.', false);
+        setProgress(100);
+        setTimeout(() => setProgress(0), 400);
       } catch (err) {
         console.error('loadDataFromSupabase error:', err);
         setConnStatus('Erro na conexão', 'err');
-        const detail = err?.message || err?.error_description || err?.hint || err?.details || (typeof err === 'string' ? err : JSON.stringify(err)) || 'erro desconhecido';
-        const code = err?.code ? ` [código: ${err.code}]` : '';
-        const status = err?.status ? ` [HTTP ${err.status}]` : '';
-        setStatus(`Erro ao carregar dados${status}${code}: ${detail}`, true);
+        const detail = err?.message || err?.error_description || (typeof err === 'string' ? err : JSON.stringify(err)) || 'erro desconhecido';
+        setStatus(`Erro ao conectar: ${detail}`, true);
         setProgress(0);
       }
     }
@@ -1209,9 +1129,8 @@
       const minDate = allStarts[0];
       const maxDate = allEnds[allEnds.length - 1];
 
-      const eqKey = (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip].sort().join('|') : '';
-      const frKey = (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front].sort().join('|') : '';
-      const cacheKey = `${minDate}~${maxDate}~${filters.mode}~${eqKey}~${frKey}`;
+      const frKey = filters.front.size > 0 ? [...filters.front].sort().join('|') : '';
+      const cacheKey = `${minDate}~${maxDate}~${frKey}`;
 
       let baseRows = _fetchCache.get(cacheKey);
       if (!baseRows) {
@@ -1220,64 +1139,29 @@
       } else {
         setProgress(70);
       }
-      // Filtro de tipo (Trator/Colhedora/...) é barato — aplicado fora do cache
       return baseRows;
     }
 
-    // Busca os dados e normaliza para {d,f,e,m,c,cd,a,h}.
-    // Tenta o RPC agregado (rápido); se indisponível, cai para busca direta paginada.
     async function fetchAndNormalize(minDate, maxDate, filters) {
-      const equipArr = (filters.mode === 'equip' && filters.equip.size > 0) ? [...filters.equip] : null;
-      const frentArr = (filters.mode === 'front' && filters.front.size > 0) ? [...filters.front] : null;
-
+      const frentArr = filters.front.size > 0 ? [...filters.front] : null;
       setProgress(20);
-      // 1) tenta RPC agregado
-      const { data, error } = await state.supabase.rpc('resumo_linha_do_tempo', {
-        p_data_inicio: minDate, p_data_fim: maxDate,
-        p_equipamentos: equipArr, p_frentes: frentArr
-      });
-      if (!error) {
-        setProgress(70);
-        return normalizeRpcRows(data || []);
-      }
-      // 2) fallback: busca direta paginada (funciona bem em bases menores)
-      const isNotFound = error.code === 'PGRST202' || /resumo_linha_do_tempo|not exist|schema cache/i.test(error.message || '');
-      if (!isNotFound && !/timeout|canceling/i.test(error.message || '')) throw error;
-      return await fetchRawRows(minDate, maxDate, equipArr, frentArr);
+      return await fetchRawRows(minDate, maxDate, frentArr);
     }
 
-    function normalizeRpcRows(data) {
-      const rows = [];
-      for (const r of data) {
-        const horas = Number(r.total_horas);
-        if (!isFinite(horas) || horas < 0) continue;
-        const classificacao = normText(r.classificacao);
-        let atividade = normText(r.atividade);
-        if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
-        if (!classificacao || !atividade || !r.data) continue;
-        rows.push({
-          d: r.data, f: (r.frente || '').toString().trim(),
-          e: (r.equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
-          c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
-          a: atividade, h: horas
-        });
-      }
-      return rows;
-    }
 
-    async function fetchRawRows(minDate, maxDate, equipArr, frentArr) {
+    async function fetchRawRows(minDate, maxDate, frentArr) {
       const pageSize = 1000;
       let from = 0;
       const rows = [];
       while (true) {
         let query = state.supabase
           .from(TABLE_NAME)
-          .select('data, frente, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
+          .select('data, frente, codigo_equipamento, equipamento, classificacao, codigo_operacao, atividade, hora_inicial, hora_final')
           .gte('data', minDate).lte('data', maxDate)
           .order('data', { ascending: true })
           .range(from, from + pageSize - 1);
-        if (equipArr) query = query.in('equipamento', equipArr);
-        else if (frentArr) query = query.in('frente', frentArr);
+        if (frentArr) query = query.in('frente', frentArr);
+        query = query.not('codigo_equipamento', 'like', '9%');
         const { data, error } = await query;
         if (error) throw error;
         // Diagnóstico: loga primeira linha para checar formato dos campos
@@ -1288,18 +1172,18 @@
         }
         for (const r of (data || [])) {
           const horas = calcHoras(r.hora_inicial, r.hora_final);
-          if (!isFinite(horas) || horas < 0) continue;
-          const classificacao = normText(r.classificacao);
-          let atividade = normText(r.atividade);
+          const classificacao = normText(r.classificacao) || 'SEM CLASSIFICACAO';
+          let atividade = normText(r.atividade) || 'SEM APONTAMENTO';
           if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
-          if (!classificacao || !atividade || !r.data) continue;
+          if (!r.data) continue;
           rows.push({
             d: r.data, f: (r.frente || '').toString().trim(),
-            e: (r.equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
+            e: (r.codigo_equipamento || '').toString().trim(), m: (r.equipamento || '').toString().trim(),
             c: classificacao, cd: (r.codigo_operacao || '').toString().trim(),
-            a: atividade, h: horas
+            a: atividade, h: Math.max(0, isFinite(horas) ? horas : 0)
           });
         }
+        if (from === 0) console.log(`[DIAG] Página 0: ${(data||[]).length} linhas brutas → ${rows.length} normalizadas`);
         setProgress(20 + Math.min(50, Math.floor((data || []).length ? from / 200 : 0)));
         if (!data || data.length < pageSize) break;
         from += pageSize;
@@ -1322,25 +1206,7 @@
       $('loadingBar').style.width = `${Math.max(0, Math.min(100, pct))}%`;
     }
 
-    function buildFilters() {
-      createMultiBox('equipBox', state.allEquip, state.selectedEquip, () => { updateFilterSummary(); maybeAutoCalc(); });
-      createMultiBox('frontBox', state.allFront, state.selectedFront, () => { refreshModelFilter(); updateFilterSummary(); maybeAutoCalc(); });
-      refreshModelFilter();
-    }
-
-    function refreshModelFilter() {
-      const fronts = new Set([...state.selectedFront].map(String));
-      const out = new Set();
-      for (const r of (state.metaRows || [])) {
-        if (fronts.size && !fronts.has(String(r.f))) continue;
-        if (r.m) out.add(r.m);
-      }
-      state.allModel = uniqueSorted([...out]);
-      for (const m of [...state.selectedModel]) {
-        if (!state.allModel.includes(m)) state.selectedModel.delete(m);
-      }
-      createMultiBox('modelBox', state.allModel, state.selectedModel, () => { updateFilterSummary(); maybeAutoCalc(); });
-    }
+    function buildFilters() { /* filtro agora é campo de texto, nada a construir */ }
 
     function createMultiBox(id, values, selectedSet, onChange) {
       const box = $(id);
@@ -1369,7 +1235,8 @@
         list.innerHTML = visible.map(v => {
           const safe = escapeHtml(v);
           const checked = selectedSet.has(String(v)) ? 'checked' : '';
-          return `<label class="check-row" title="${safe}"><input type="checkbox" value="${safe}" ${checked} /><span>${safe}</span></label>`;
+          // value usa o texto original (não escapado) para bater com row.f/row.e
+          return `<label class="check-row" title="${safe}"><input type="checkbox" value="${v}" ${checked} /><span>${safe}</span></label>`;
         }).join('') + more;
       };
       search.addEventListener('input', render);
@@ -1390,24 +1257,7 @@
       render();
     }
 
-    function setMode(mode) {
-      state.mode = mode;
-      $('modeEquip').classList.toggle('active', mode === 'equip');
-      $('modeFront').classList.toggle('active', mode === 'front');
-      $('equipGroup').classList.toggle('hidden', mode !== 'equip');
-      $('frontGroup').classList.toggle('hidden', mode !== 'front');
-      $('modelGroup').classList.toggle('hidden', mode !== 'front');
-      updateFilterSummary();
-      maybeAutoCalc();
-    }
-
-    function setDefaultPeriods() {
-      if (!state.minDate || !state.maxDate) return;
-      ['p1','p2','p3','p4'].forEach(p => {
-        $(`${p}Start`).value = state.minDate;
-        $(`${p}End`).value = state.maxDate;
-      });
-    }
+    function setMode() { /* não usado — filtro é campo de texto */ }
 
     function copyPeriod4ToAll() {
       const s = $('p4Start').value;
@@ -1424,16 +1274,16 @@
     }
 
     function updateFilterSummary() {
-      $('filterSummary').textContent = getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
+      const raw = ($('frenteFilterInput') ? $('frenteFilterInput').value : '').trim();
+      const frentes = raw ? raw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+      const txt = frentes.length ? `${frentes.length} frente(s)` : 'Todas as frentes';
+      $('filterSummary').textContent = txt + ($('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '');
     }
 
     function getSelectionText() {
-      if (state.mode === 'equip') {
-        return state.selectedEquip.size ? `${state.selectedEquip.size} frota(s)` : 'Todas as frotas';
-      }
-      const f = state.selectedFront.size ? `${state.selectedFront.size} frente(s)` : 'Todas as frentes';
-      const m = state.selectedModel.size ? `${state.selectedModel.size} modelo(s)` : 'Todos os modelos';
-      return `${f} / ${m}`;
+      const raw = ($('frenteFilterInput') ? $('frenteFilterInput').value : '').trim();
+      const frentes = raw ? raw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+      return frentes.length ? `${frentes.length} frente(s)` : 'Todas as frentes';
     }
 
     function periodComplete(prefix) {
@@ -1449,15 +1299,12 @@
     }
 
     function passesGlobalFilters(row, filters) {
-      const mode = filters.mode || 'equip';
-      const equip = filters.equip;
-      const front = filters.front;
-      const model = filters.model;
-      if (mode === 'equip') {
-        return equip.size === 0 || equip.has(String(row.e));
+      const mode = filters.mode || 'all';
+      if (mode === 'all') return true;
+      if (mode === 'front') {
+        const front = filters.front;
+        return front.size === 0 || front.has(String(row.f));
       }
-      if (front.size > 0 && !front.has(String(row.f))) return false;
-      if (model.size > 0 && !model.has(String(row.m))) return false;
       return true;
     }
 
@@ -1483,7 +1330,7 @@
         if (!passesGlobalFilters(row, filters)) continue;
         if (row.d < period.start || row.d > period.end) continue;
         const h = row.h;
-        if (!isFinite(h) || h <= 0) continue;
+        if (!isFinite(h) || h < 0) continue;
         const deslocProd = isDeslocamentoProdutivo(row, filters.deslocToggle);
         const cls = deslocProd ? 'PRODUTIVA' : row.c;
         total += h;
@@ -1551,11 +1398,16 @@
         }
       }
       try {
+        // Lê frentes do campo de texto (separadas por vírgula)
+        const frenteInputRaw = ($('frenteFilterInput').value || '').trim();
+        const frenteList = frenteInputRaw
+          ? frenteInputRaw.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
         const filters = {
-          mode: state.mode,
-          equip: new Set([...state.selectedEquip]),
-          front: new Set([...state.selectedFront]),
-          model: new Set([...state.selectedModel]),
+          mode: frenteList.length > 0 ? 'front' : 'all',
+          equip: new Set(),
+          front: new Set(frenteList),
+          model: new Set(),
           deslocToggle: $('deslocToggle').checked
         };
         setStatus('Buscando dados do servidor...', false);
@@ -1572,7 +1424,8 @@
         const base = calculated[3] || calculated[1] || null;
         const baseOffendersNoMaintenance = base ? base.offenderNoMaintenanceList.slice(0, 10) : [];
         const baseOffendersMaintenance   = base ? base.offenderMaintenanceList.slice(0, 10)   : [];
-        const result = { periods, labels: ['Período 1','Período 2','Período 3','Período 4'], calculated, baseOffendersNoMaintenance, baseOffendersMaintenance };
+        const equipSet = new Set(calcRows.map(r => r.e).filter(Boolean));
+        const result = { periods, labels: ['Período 1','Período 2','Período 3','Período 4'], calculated, baseOffendersNoMaintenance, baseOffendersMaintenance, nEquip: equipSet.size };
 
         state.lastResult = result;
         renderResults(result);
@@ -1603,11 +1456,12 @@
 
     function renderResults(result) {
       const selectionText = getSelectionText();
-      setStatus(`Comparação calculada. Filtro aplicado: ${selectionText}. Base dos ofensores: Período 2. Apenas ofensores improdutivos exibidos.`, false);
-      renderComparisonTable(result.calculated, result.baseOffendersNoMaintenance, result.baseOffendersMaintenance, result.periods);
+      const n = result.nEquip || 0;
+      setStatus(`Comparação calculada — ${n} equipamento${n!==1?'s':''} no período. Filtro: ${selectionText}.`, false);
+      renderComparisonTable(result.calculated, result.baseOffendersNoMaintenance, result.baseOffendersMaintenance, result.periods, result.nEquip);
     }
 
-    function renderComparisonTable(calculatedAll, baseOffendersNoMaintenance, baseOffendersMaintenance, periodsAll) {
+    function renderComparisonTable(calculatedAll, baseOffendersNoMaintenance, baseOffendersMaintenance, periodsAll, nEquip) {
       const skipP1 = $('skipP1Toggle').checked;
       const calculated = skipP1 ? calculatedAll.slice(1) : calculatedAll;
       const periods    = skipP1 ? periodsAll.slice(1)    : periodsAll;
@@ -1687,7 +1541,8 @@
           </div>`;
       }).join('');
 
-      $('resultTable').innerHTML = mainHtml + `
+      const equipBadge = nEquip > 0 ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><span style="background:#063f58;color:#fff;font-size:13px;font-weight:800;padding:5px 14px;border-radius:20px;letter-spacing:.3px">🚜 ${nEquip} equipamento${nEquip!==1?'s':''}</span></div>` : '';
+      $('resultTable').innerHTML = equipBadge + mainHtml + `
         <div style="margin-top:32px;padding:0 2px">
           <div style="font-size:17px;font-weight:900;color:var(--ink);margin-bottom:2px">Ofensores improdutivos por período</div>
           <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Classificação: IMPRODUTIVO — ordenado por horas (maior → menor).</div>
@@ -1870,11 +1725,13 @@
           { start: atuStart, end: atuEnd },
           { start: mesStart, end: mesEnd }
         ];
+        const frenteInputRaw = ($('frenteFilterInput').value || '').trim();
+        const frenteList = frenteInputRaw ? frenteInputRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
         const filters = {
-          mode: state.mode,
-          equip: new Set([...state.selectedEquip]),
-          front: new Set([...state.selectedFront]),
-          model: new Set([...state.selectedModel]),
+          mode: frenteList.length > 0 ? 'front' : 'all',
+          equip: new Set(),
+          front: new Set(frenteList),
+          model: new Set(),
           deslocToggle: $('deslocToggle').checked
         };
         const calcRows = await fetchRowsForCalc(periods, filters);
