@@ -1161,6 +1161,7 @@
           .order('data', { ascending: true })
           .range(from, from + pageSize - 1);
         if (frentArr) query = query.in('frente', frentArr);
+        query = query.not('codigo_equipamento', 'like', '9%');
         const { data, error } = await query;
         if (error) throw error;
         // Diagnóstico: loga primeira linha para checar formato dos campos
