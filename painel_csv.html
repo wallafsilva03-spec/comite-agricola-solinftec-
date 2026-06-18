@@ -898,24 +898,57 @@
         fields.push(cur.trim());
         return fields;
       }
-      // skip header (first line)
+      const header = parseLine(lines[0]);
       const rows = [];
       for (let li = 1; li < lines.length; li++) {
-        const f = parseLine(lines[li]);
-        rows.push(f);
+        rows.push(parseLine(lines[li]));
       }
-      return rows;
+      return { header, rows };
+    }
+
+    // Mapeia índices de coluna a partir do cabeçalho do CSV (robusto a ordem diferente).
+    // Retorna um objeto { chave: índice }. Cai para índices padrão se o cabeçalho não bater.
+    const DEFAULT_COL_INDEX = {
+      regional: 0, unidade: 1, frente: 2, codigo_equipamento: 3, equipamento: 4,
+      codigo_operador: 5, operador: 6, data: 7, hora_inicial: 8, hora_final: 9,
+      codigo_operacao: 10, atividade: 11, classificacao: 12, codigo_fazenda: 13,
+      codigo_zona: 14, codigo_talhao: 15, fazenda: 16, horimetro_inicial: 17,
+      horimetro_final: 18, horimetro_secundario: 19, velocidade_media: 20,
+    };
+    // Aliases dos nomes que aparecem nos relatórios de origem (normalizados sem acento/maiúsculas).
+    const COL_ALIASES = {
+      frente: ['frente', 'descricao do grupo de equipamento', 'grupo de equipamento', 'frente colheita'],
+      codigo_equipamento: ['codigo_equipamento', 'codigo equipamento', 'cod equipamento', 'cod equip', 'equipamento codigo'],
+      equipamento: ['equipamento', 'descricao do equipamento', 'descricao equipamento'],
+      data: ['data', 'dt', 'date', 'dia'],
+      hora_inicial: ['hora_inicial', 'hora inicial', 'hora ini', 'inicio', 'hora inicio'],
+      hora_final: ['hora_final', 'hora final', 'hora fim', 'fim', 'hora termino'],
+      codigo_operacao: ['codigo_operacao', 'codigo operacao', 'cod operacao', 'cd operacao', 'cd atividade'],
+      atividade: ['atividade', 'descricao da operacao', 'descricao operacao', 'operacao'],
+      classificacao: ['classificacao', 'descricao do grupo da operacao', 'grupo da operacao', 'grupo operacao', 'classificacao operacao'],
+    };
+    function buildColMap(header) {
+      const map = Object.assign({}, DEFAULT_COL_INDEX);
+      if (!header || !header.length) return map;
+      const normHeader = header.map(h => normText(h));
+      for (const [key, aliases] of Object.entries(COL_ALIASES)) {
+        const wanted = aliases.map(a => normText(a));
+        const idx = normHeader.findIndex(h => wanted.includes(h));
+        if (idx >= 0) map[key] = idx;
+      }
+      return map;
     }
 
     // ─── DATE / HORA NORMALIZATION ────────────────────────────────────────────
     function normDate(v) {
       if (!v) return '';
       const s = String(v).trim().split('T')[0].split(' ')[0];
-      // DD/MM/YYYY → YYYY-MM-DD
-      const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      // DD/MM/YYYY ou DD-MM-YYYY ou DD.MM.YYYY → YYYY-MM-DD
+      let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
       if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-      // already YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      // YYYY-MM-DD ou YYYY/MM/DD → YYYY-MM-DD
+      m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+      if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
       return '';
     }
 
@@ -935,29 +968,29 @@
     // 10:codigo_operacao, 11:atividade, 12:classificacao, 13:codigo_fazenda
     // 14:codigo_zona, 15:codigo_talhao, 16:fazenda, 17:horimetro_inicial
     // 18:horimetro_final, 19:horimetro_secundario, 20:velocidade_media
-    function normalizeRow(f) {
-      const codigo_equip = String(f[3] || '').trim();
+    function normalizeRow(f, cm) {
+      const codigo_equip = String(f[cm.codigo_equipamento] || '').trim();
       // Exclude rows where codigo_equipamento starts with '9'
       if (codigo_equip.startsWith('9')) return null;
 
-      const data = normDate(f[7]);
+      const data = normDate(f[cm.data]);
       if (!data) return null;
 
-      const hora_ini = normHora(f[8]);
-      const hora_fim = normHora(f[9]);
+      const hora_ini = normHora(f[cm.hora_inicial]);
+      const hora_fim = normHora(f[cm.hora_final]);
       const horas = calcHoras(hora_ini, hora_fim);
 
-      let classificacao = normText(f[12]) || 'SEM CLASSIFICACAO';
-      let atividade = normText(f[11]) || 'SEM APONTAMENTO';
+      let classificacao = normText(f[cm.classificacao]) || 'SEM CLASSIFICACAO';
+      let atividade = normText(f[cm.atividade]) || 'SEM APONTAMENTO';
       if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
 
       return {
         d: data,
-        f: String(f[2] || '').trim(),
+        f: String(f[cm.frente] || '').trim(),
         e: codigo_equip,
-        m: String(f[4] || '').trim(),
+        m: String(f[cm.equipamento] || '').trim(),
         c: classificacao,
-        cd: String(f[10] || '').trim(),
+        cd: String(f[cm.codigo_operacao] || '').trim(),
         a: atividade,
         h: Math.max(0, isFinite(horas) ? horas : 0)
       };
@@ -967,10 +1000,11 @@
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const rawRows = parseCSV(reader.result);
+          const parsed = parseCSV(reader.result);
+          const cm = buildColMap(parsed.header);
           const normalized = [];
-          for (const f of rawRows) {
-            const r = normalizeRow(f);
+          for (const f of parsed.rows) {
+            const r = normalizeRow(f, cm);
             if (r) normalized.push(r);
           }
           state.bases[i].rows = normalized;
