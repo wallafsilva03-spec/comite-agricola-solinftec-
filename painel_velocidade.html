@@ -396,9 +396,29 @@
       return ''; // formato não reconhecido → não atrapalha o filtro
     }
 
+    // Detecta automaticamente qual coluna contém a data, varrendo os valores.
+    // Retorna o nome da coluna que mais se parece com data, ou '' se nenhuma.
+    function detectDateColumn(data) {
+      if (!data.length) return '';
+      const keys = Object.keys(data[0]);
+      const sample = data.slice(0, 50);
+      let best = '', bestScore = 0;
+      for (const k of keys) {
+        let hits = 0;
+        for (const row of sample) {
+          if (normDate(row[k])) hits++;
+        }
+        if (hits > bestScore) { bestScore = hits; best = k; }
+      }
+      // exige que pelo menos metade da amostra pareça data
+      return bestScore >= Math.min(5, Math.ceil(sample.length / 2)) ? best : '';
+    }
+
     function normalizeRows(data) {
       const out = [];
       let diagDone = false;
+      const dateCol = detectDateColumn(data);
+      console.log('[DIAG] coluna de data detectada automaticamente:', JSON.stringify(dateCol));
       for (const r of data) {
         const atividade = pick(r, ['atividade', 'descricao_da_operacao', 'operacao', 'descricao_operacao', 'descricao_da_operacao_']);
         const velRaw = pick(r, ['velocidade_media', 'velocidade', 'vel_media', 'velocidademedia', 'velocidade_media_kmh', 'velocidade_media_km_h', 'vel']);
@@ -406,7 +426,8 @@
         const ini = pick(r, ['hora_inicial', 'horainicial', 'hora_inicio', 'inicio', 'hora_inicial_']);
         const fim = pick(r, ['hora_final', 'horafinal', 'hora_fim', 'fim', 'hora_final_']);
         const horas = calcHoras(ini, fim);
-        const dataRaw = pick(r, ['data', 'dia', 'data_apontamento', 'data_evento', 'data_inicial', 'data_inicio', 'dt', 'date', 'data_hora', 'datahora', 'data_ponto']);
+        let dataRaw = pick(r, ['data', 'dia', 'data_apontamento', 'data_evento', 'data_inicial', 'data_inicio', 'dt', 'date', 'data_hora', 'datahora', 'data_ponto']);
+        if (!normDate(dataRaw) && dateCol) dataRaw = r[dateCol]; // fallback: coluna detectada automaticamente
         if (!diagDone) {
           console.log('[DIAG] colunas detectadas:', Object.keys(r));
           console.log('[DIAG] amostra → atividade:', atividade, '| dataRaw:', JSON.stringify(dataRaw), '→ normDate:', JSON.stringify(normDate(dataRaw)), '| velRaw:', velRaw, '→', vel, '| ini:', ini, '| fim:', fim, '| horas:', horas);
