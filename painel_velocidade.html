@@ -387,7 +387,13 @@
       if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
       m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
       if (m) return `20${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-      return t;
+      // DD-MM-AAAA ou DD.MM.AAAA
+      m = t.match(/^(\d{1,2})[-.](\d{1,2})[-.](\d{4})$/);
+      if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+      // AAAA/MM/DD
+      m = t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+      if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+      return ''; // formato não reconhecido → não atrapalha o filtro
     }
 
     function normalizeRows(data) {
@@ -633,11 +639,18 @@
       let total = 0;
       const op = normText($('opFilter').value);
       for (const p of state.periods) {
+        const tsStart = p.dStart ? new Date(p.dStart + 'T00:00:00').getTime() : null;
+        const tsEnd   = p.dEnd   ? new Date(p.dEnd   + 'T23:59:59').getTime() : null;
         for (const rows of periodSources(p)) {
           for (const r of rows) {
             if (op && !r.atividade.includes(op)) continue;
-            if (p.dStart && r.data && r.data < p.dStart) continue;
-            if (p.dEnd && r.data && r.data > p.dEnd) continue;
+            if (tsStart !== null || tsEnd !== null) {
+              if (!r.data) continue;
+              const ts = new Date(r.data + 'T00:00:00').getTime();
+              if (isNaN(ts)) continue;
+              if (tsStart !== null && ts < tsStart) continue;
+              if (tsEnd !== null && ts > tsEnd) continue;
+            }
             total++;
           }
         }
@@ -678,12 +691,19 @@
       for (const r of ranges) buckets[r.idx] = { horas: 0, count: 0, velSum: 0, equip: new Set(), frentes: new Set() };
       let totalHoras = 0, totalCount = 0, totalVelSum = 0, foraFaixa = 0, semVel = 0;
       const allEquip = new Set();
+      const tsStart = dStart ? new Date(dStart + 'T00:00:00').getTime() : null;
+      const tsEnd   = dEnd   ? new Date(dEnd   + 'T23:59:59').getTime() : null;
       for (const rows of sources) {
         if (!rows) continue;
         for (const row of rows) {
           if (op && !row.atividade.includes(op)) continue;
-          if (dStart && row.data && row.data < dStart) continue;
-          if (dEnd && row.data && row.data > dEnd) continue;
+          if (tsStart !== null || tsEnd !== null) {
+            if (!row.data) continue;
+            const ts = new Date(row.data + 'T00:00:00').getTime();
+            if (isNaN(ts)) continue;
+            if (tsStart !== null && ts < tsStart) continue;
+            if (tsEnd !== null && ts > tsEnd) continue;
+          }
           if (!isFinite(row.vel)) { semVel++; continue; }
           const idx = rangeOf(row.vel, ranges);
           totalHoras += row.horas; totalCount++; totalVelSum += row.vel;
