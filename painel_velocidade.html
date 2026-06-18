@@ -712,30 +712,37 @@
     }
 
     function generate() {
-      const op = normText($('opFilter').value);
-      const ranges = activeRanges();
-      if (!ranges.length) { setStatus('Defina pelo menos uma faixa de velocidade válida (máx > mín).', 'warn'); return; }
-      const periods = [];
-      state.periods.forEach((p, i) => {
-        const rows = periodRows(p);
-        if (!rows || !rows.length) return;
-        const calc = calcPeriod(rows, op, ranges, p.dStart, p.dEnd);
-        periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges, dStart: p.dStart, dEnd: p.dEnd });
-      });
-      // Coluna GERAL: soma de todas as bases importadas (sem filtro de data)
-      if ($('incluirGeral').checked) {
-        const allRows = [];
-        for (const b of state.bases) if (b.rows) allRows.push(...b.rows);
-        if (allRows.length) {
-          const calc = calcPeriod(allRows, op, ranges, '', '');
-          periods.push({ name: 'GERAL (todas as bases)', calc, ranges, dStart: '', dEnd: '', isGeral: true });
+      try {
+        const op = normText($('opFilter').value);
+        const ranges = activeRanges();
+        if (!ranges.length) { setStatus('Defina pelo menos uma faixa de velocidade válida (máx > mín).', 'warn'); return; }
+        if (!state.bases.some(b => b.rows)) { setStatus('Importe pelo menos uma base CSV antes de calcular.', 'warn'); return; }
+        const periods = [];
+        state.periods.forEach((p, i) => {
+          const rows = periodRows(p);
+          if (!rows || !rows.length) return;
+          const calc = calcPeriod(rows, op, ranges, p.dStart, p.dEnd);
+          periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges, dStart: p.dStart, dEnd: p.dEnd });
+        });
+        // Coluna GERAL: soma de todas as bases importadas (sem filtro de data)
+        const incGeral = $('incluirGeral') && $('incluirGeral').checked;
+        if (incGeral) {
+          const allRows = [];
+          for (const b of state.bases) if (b.rows) allRows.push(...b.rows);
+          if (allRows.length) {
+            const calc = calcPeriod(allRows, op, ranges, '', '');
+            periods.push({ name: 'GERAL (todas as bases)', calc, ranges, dStart: '', dEnd: '', isGeral: true });
+          }
         }
+        if (!periods.length) { setStatus('Monte ao menos um período com uma base selecionada (ou marque a coluna Geral).', 'warn'); return; }
+        state.lastResult = { periods, ranges, op: $('opFilter').value };
+        renderResults(state.lastResult);
+        updateButtons();
+        setStatus(`Cálculo gerado para ${periods.length} coluna(s). Use o botão de PowerPoint para exportar.`, 'ok');
+      } catch (err) {
+        console.error('Erro ao gerar cálculo:', err);
+        setStatus(`Erro ao gerar cálculo: ${err && err.message ? err.message : err}`, 'warn');
       }
-      if (!periods.length) { setStatus('Monte ao menos um período com uma base selecionada.', 'warn'); return; }
-      state.lastResult = { periods, ranges, op: $('opFilter').value };
-      renderResults(state.lastResult);
-      updateButtons();
-      setStatus(`Cálculo gerado para ${periods.length} período(s). Use o botão de PowerPoint para exportar.`, 'ok');
     }
 
     // ───────────────────────── render resultados ─────────────────────────
