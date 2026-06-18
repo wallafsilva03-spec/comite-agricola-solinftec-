@@ -1221,15 +1221,16 @@
       let deslocamentoProdutivoHoras = 0;
       let count = 0;
 
-      // Diagnóstico de período — loga apenas no primeiro calcPeriod de cada cálculo
-      if (rows.length && period.start) {
-        const sample = rows.slice(0, 3).map(r => r.d);
-        const allDates = rows.map(r => r.d).filter(Boolean).sort();
-        console.log(`[calcPeriod] período: ${period.start} → ${period.end} | datas do CSV: ${allDates[0]} … ${allDates[allDates.length-1]} | amostra: ${sample}`);
-      }
+      // Converte datas do período para timestamp — evita qualquer problema de comparação de strings
+      const pStart = period.start ? new Date(period.start + 'T00:00:00') : null;
+      const pEnd   = period.end   ? new Date(period.end   + 'T23:59:59') : null;
       for (const row of rows) {
         if (!passesGlobalFilters(row, filters)) continue;
-        if (row.d < period.start || row.d > period.end) continue;
+        if (row.d) {
+          const rowTs = new Date(row.d + 'T00:00:00');
+          if (pStart && rowTs < pStart) continue;
+          if (pEnd   && rowTs > pEnd)   continue;
+        } else { continue; }
         const h = row.h;
         if (!isFinite(h) || h < 0) continue;
         const deslocProd = isDeslocamentoProdutivo(row, filters.deslocToggle);
@@ -1317,8 +1318,10 @@
       const allLabelsCopy = ['Período 1','Período 2','Período 3','Período 4'];
 
       if (incluirAcumulado) {
-        const minStart = periods.filter(p => p.start).map(p => p.start).sort()[0];
-        const maxEnd = periods.filter(p => p.end).map(p => p.end).sort().reverse()[0];
+        // Usa o menor e maior data de TODOS os dados carregados (todos os CSVs)
+        const allDates = state.rows.map(r => r.d).filter(Boolean).sort();
+        const minStart = allDates[0] || periods.map(p => p.start).filter(Boolean).sort()[0];
+        const maxEnd   = allDates[allDates.length - 1] || periods.map(p => p.end).filter(Boolean).sort().reverse()[0];
         if (minStart && maxEnd) {
           const calcAcum = calcPeriod(state.rows, { start: minStart, end: maxEnd }, filters);
           allCalcCopy.push(calcAcum);
