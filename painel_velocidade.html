@@ -426,7 +426,7 @@
         const ini = pick(r, ['hora_inicial', 'horainicial', 'hora_inicio', 'inicio', 'hora_inicial_']);
         const fim = pick(r, ['hora_final', 'horafinal', 'hora_fim', 'fim', 'hora_final_']);
         const horas = calcHoras(ini, fim);
-        let dataRaw = pick(r, ['data', 'dia', 'data_apontamento', 'data_evento', 'data_inicial', 'data_inicio', 'dt', 'date', 'data_hora', 'datahora', 'data_ponto']);
+        let dataRaw = pick(r, ['data_hora_local', 'data', 'dia', 'data_apontamento', 'data_evento', 'data_inicial', 'data_inicio', 'dt', 'date', 'data_hora', 'datahora', 'data_hora_local_', 'data_ponto']);
         if (!normDate(dataRaw) && dateCol) dataRaw = r[dateCol]; // fallback: coluna detectada automaticamente
         if (!diagDone) {
           console.log('[DIAG] colunas detectadas:', Object.keys(r));
