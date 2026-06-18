@@ -806,193 +806,94 @@
         </section>`;
     }
 
-    // ───────────────────────── export PPTX (1 slide, 4 períodos fixos) ─────────────────────────
+    // ───────────────────────── export PPTX (1 slide, 4 períodos) ─────────────────────────
     function exportPptx() {
       const result = state.lastResult;
       if (!result) return;
-
       const pptx = new PptxGenJS();
       pptx.defineLayout({ name: 'WIDE', width: 13.33, height: 7.5 });
       pptx.layout = 'WIDE';
       const slide = pptx.addSlide();
+      slide.background = { color: 'F2F6F9' };
 
-      // ── fundo geral ──
-      slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 7.5, fill: { color: 'EEF2F7' }, line: { type: 'none' } });
-
-      // ── faixa de título ──
-      slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 1.15, fill: { color: '0A3D5C' }, line: { type: 'none' } });
-      // acento colorido no topo
-      slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.06, fill: { color: '1EB8D0' }, line: { type: 'none' } });
-
-      slide.addText('Análise por Faixa de Velocidade', {
-        x: 0.45, y: 0.1, w: 8, h: 0.52,
-        fontSize: 24, bold: true, color: 'FFFFFF', fontFace: 'Arial', valign: 'middle',
+      // título
+      slide.addText('Análise por Faixa de Velocidade — Corte Cana Mecanizado', {
+        x: 0.4, y: 0.25, w: 12.5, h: 0.6, fontSize: 22, bold: true, color: '06445D', fontFace: 'Arial',
       });
-      slide.addText('Corte Cana Mecanizado', {
-        x: 0.45, y: 0.6, w: 8, h: 0.42,
-        fontSize: 13, color: '7DC9DF', fontFace: 'Arial', valign: 'middle',
+      slide.addText(`Operação: ${result.op}  ·  Faixas (km/h): ` +
+        result.ranges.map(r => `${r.label} ${fmtV(r.min)}–${fmtV(r.max)}`).join('   |   '), {
+        x: 0.4, y: 0.82, w: 12.5, h: 0.35, fontSize: 11, color: '667085', fontFace: 'Arial',
       });
 
-      // legenda de faixas no canto direito do header
-      const rangeLabels = result.ranges.map((r, i) =>
-        ({ text: `  ${r.label}  ${fmtV(r.min)}–${fmtV(r.max)} km/h`, options: { color: PALETTE_PPT[i] || 'FFFFFF', fontSize: 9.5, fontFace: 'Arial', breakLine: true } })
-      );
-      slide.addText(rangeLabels, { x: 8.6, y: 0.1, w: 4.3, h: 1.0, valign: 'middle' });
+      const periods = result.periods.slice(0, 5);
+      const n = periods.length;
+      const gap = 0.25;
+      const startX = 0.4;
+      const totalW = 12.53;
+      const colW = (totalW - gap * (n - 1)) / n;
+      const topY = 1.35;
+      const colH = 5.75;
 
-      // ── 4 colunas fixas ──
-      const allPeriods = result.periods.slice(0, 4);
-      while (allPeriods.length < 4) allPeriods.push(null); // preenche com null se <4
-
-      const gap = 0.18;
-      const startX = 0.3;
-      const totalW = 12.73;
-      const colW = (totalW - gap * 3) / 4;   // ≈ 3.12"
-      const topY = 1.28;
-      const colH = 5.95;
-      const cardRadius = 0.07;
-
-      allPeriods.forEach((p, pi) => {
+      periods.forEach((p, pi) => {
         const x = startX + pi * (colW + gap);
-
-        if (!p) {
-          // coluna vazia — placeholder
-          slide.addShape(pptx.ShapeType.roundRect, {
-            x, y: topY, w: colW, h: colH,
-            fill: { color: 'F5F8FA' }, line: { color: 'D8E3EA', pt: 1 }, rectRadius: cardRadius,
-          });
-          slide.addText('—', { x, y: topY + colH / 2 - 0.3, w: colW, h: 0.6, align: 'center', fontSize: 20, color: 'C8D5DD', fontFace: 'Arial' });
-          return;
-        }
-
         const c = p.calc;
-
-        // ── card branco ──
+        // cabeçalho do período
         slide.addShape(pptx.ShapeType.roundRect, {
-          x, y: topY, w: colW, h: colH,
-          fill: { color: 'FFFFFF' }, line: { color: 'D8E3EA', pt: 0.75 }, rectRadius: cardRadius,
+          x, y: topY, w: colW, h: 0.7, fill: { color: '0B7497' }, line: { color: '0B7497' }, rectRadius: 0.06,
+        });
+        slide.addText(p.name, { x, y: topY + 0.04, w: colW, h: 0.34, align: 'center', fontSize: 13, bold: true, color: 'FFFFFF', fontFace: 'Arial' });
+        slide.addText(`${fmtH(c.totalHoras)} h · ${fmtN(c.totalCount)} reg · ${fmtV(c.velMediaGeral)} km/h`, {
+          x, y: topY + 0.36, w: colW, h: 0.3, align: 'center', fontSize: 8.5, color: 'D6EAF2', fontFace: 'Arial',
         });
 
-        // ── header do card ──
-        slide.addShape(pptx.ShapeType.roundRect, {
-          x, y: topY, w: colW, h: 0.82,
-          fill: { color: '0B7497' }, line: { type: 'none' }, rectRadius: cardRadius,
-        });
-        // quadrado inferior para fechar o arredondamento do header na parte de baixo
-        slide.addShape(pptx.ShapeType.rect, {
-          x, y: topY + 0.56, w: colW, h: 0.26,
-          fill: { color: '0B7497' }, line: { type: 'none' },
-        });
-
-        // número do período em destaque
-        slide.addShape(pptx.ShapeType.rect, {
-          x: x + 0.12, y: topY + 0.12, w: 0.38, h: 0.38,
-          fill: { color: '1EB8D0' }, line: { type: 'none' },
-        });
-        slide.addText(`${pi + 1}`, {
-          x: x + 0.12, y: topY + 0.12, w: 0.38, h: 0.38,
-          align: 'center', valign: 'middle', fontSize: 16, bold: true, color: 'FFFFFF', fontFace: 'Arial',
-        });
-
-        // nome do período
-        slide.addText(p.name, {
-          x: x + 0.58, y: topY + 0.1, w: colW - 0.68, h: 0.38,
-          fontSize: 11, bold: true, color: 'FFFFFF', fontFace: 'Arial', valign: 'middle',
-        });
-
-        // sub-info: horas · registros · vel. média
-        slide.addText(`${fmtH(c.totalHoras)} h  ·  ${fmtN(c.totalCount)} reg  ·  ⌀ ${fmtV(c.velMediaGeral)} km/h`, {
-          x: x + 0.58, y: topY + 0.48, w: colW - 0.68, h: 0.28,
-          fontSize: 8.5, color: 'BEE3F0', fontFace: 'Arial', valign: 'middle',
-        });
-
-        // ── separador ──
-        slide.addShape(pptx.ShapeType.rect, {
-          x: x + 0.12, y: topY + 0.92, w: colW - 0.24, h: 0.012,
-          fill: { color: 'E2ECF2' }, line: { type: 'none' },
-        });
-
-        // ── tabela de dados ──
-        const tblY = topY + 0.96;
-        const tblRowH = 0.31;
-        const headerRow = [
-          { text: 'Faixa', options: { bold: true, color: 'FFFFFF', fill: { color: '0A3D5C' }, fontSize: 8.5, align: 'left', margin: [0, 0, 0, 6] } },
-          { text: '%', options: { bold: true, color: 'FFFFFF', fill: { color: '0A3D5C' }, fontSize: 8.5, align: 'center' } },
-          { text: 'Horas', options: { bold: true, color: 'FFFFFF', fill: { color: '0A3D5C' }, fontSize: 8.5, align: 'center' } },
-          { text: 'Vel.', options: { bold: true, color: 'FFFFFF', fill: { color: '0A3D5C' }, fontSize: 8.5, align: 'center' } },
+        // tabela de faixas
+        const tblY = topY + 0.85;
+        const header = [
+          { text: 'Faixa', options: { bold: true, color: 'FFFFFF', fill: { color: '06445D' }, fontSize: 9, align: 'left' } },
+          { text: '% Hrs', options: { bold: true, color: 'FFFFFF', fill: { color: '06445D' }, fontSize: 9, align: 'center' } },
+          { text: 'Horas', options: { bold: true, color: 'FFFFFF', fill: { color: '06445D' }, fontSize: 9, align: 'center' } },
+          { text: 'Vel', options: { bold: true, color: 'FFFFFF', fill: { color: '06445D' }, fontSize: 9, align: 'center' } },
         ];
-        const bodyRows = c.perRange.map((r, ri) => {
-          const bg = ri % 2 === 0 ? 'F7FAFC' : 'FFFFFF';
-          return [
-            { text: r.label, options: { color: PALETTE_PPT[r.idx] || '344054', bold: true, fontSize: 8.5, align: 'left', fill: { color: bg }, margin: [0, 0, 0, 6] } },
-            { text: fmtPct(r.pctHoras), options: { fontSize: 8.5, align: 'center', fill: { color: bg }, color: '344054' } },
-            { text: fmtH(r.horas), options: { fontSize: 8.5, align: 'center', fill: { color: bg }, color: '344054' } },
-            { text: fmtV(r.velMedia) + ' km/h', options: { fontSize: 8.5, align: 'center', fill: { color: bg }, color: '344054' } },
-          ];
-        });
+        const body = c.perRange.map(r => ([
+          { text: r.label, options: { color: PALETTE_PPT[r.idx], bold: true, fontSize: 8.5, align: 'left' } },
+          { text: fmtPct(r.pctHoras), options: { fontSize: 8.5, align: 'center' } },
+          { text: fmtH(r.horas), options: { fontSize: 8.5, align: 'center' } },
+          { text: fmtV(r.velMedia), options: { fontSize: 8.5, align: 'center' } },
+        ]));
         const totalRow = [
-          { text: 'TOTAL', options: { bold: true, fontSize: 8.5, align: 'left', fill: { color: 'DFF0F7' }, color: '0A3D5C', margin: [0, 0, 0, 6] } },
-          { text: '100%', options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'DFF0F7' }, color: '0A3D5C' } },
-          { text: fmtH(c.totalHoras), options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'DFF0F7' }, color: '0A3D5C' } },
-          { text: fmtV(c.velMediaGeral) + ' km/h', options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'DFF0F7' }, color: '0A3D5C' } },
+          { text: 'TOTAL', options: { bold: true, fontSize: 8.5, align: 'left', fill: { color: 'EAF4F8' } } },
+          { text: '100%', options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'EAF4F8' } } },
+          { text: fmtH(c.totalHoras), options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'EAF4F8' } } },
+          { text: fmtV(c.velMediaGeral), options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'EAF4F8' } } },
         ];
-        slide.addTable([headerRow, ...bodyRows, totalRow], {
-          x: x + 0.1, y: tblY, w: colW - 0.2,
-          colW: [(colW - 0.2) * 0.36, (colW - 0.2) * 0.20, (colW - 0.2) * 0.24, (colW - 0.2) * 0.20],
-          border: { type: 'solid', color: 'E2ECF2', pt: 0.5 },
-          rowH: tblRowH, valign: 'middle', fontFace: 'Arial',
+        slide.addTable([header, ...body, totalRow], {
+          x, y: tblY, w: colW, colW: [colW * 0.40, colW * 0.20, colW * 0.22, colW * 0.18],
+          border: { type: 'solid', color: 'D8E1EA', pt: 0.5 },
+          rowH: 0.32, valign: 'middle', fontFace: 'Arial',
         });
 
-        // ── gráfico de barras horizontais ──
-        const numRows = c.perRange.length + 2; // header + body + total
-        const barSectionY = tblY + numRows * tblRowH + 0.22;
-        const barAreaH = topY + colH - barSectionY - 0.15;
-        const numBars = c.perRange.length;
-        const barRowH2 = numBars > 0 ? Math.min(0.72, barAreaH / numBars) : 0.6;
-        const trackX = x + 0.12;
-        const trackW = colW - 0.24;
-        const labelH = 0.22;
-        const barH = Math.max(0.14, barRowH2 - labelH - 0.06);
-
+        // barras de % por faixa
+        const barTop = tblY + 0.32 * (c.perRange.length + 1) + 0.25;
+        const barAreaH = topY + colH - barTop - 0.1;
+        const barRowH = Math.min(0.62, barAreaH / c.perRange.length);
         c.perRange.forEach((r, ri) => {
-          const rowY = barSectionY + ri * barRowH2;
-          const pct = Math.min(100, r.pctHoras);
-          const fillW = Math.max(0.04, trackW * pct / 100);
-          const barColor = PALETTE_PPT[r.idx] || '0B7497';
-
-          // label acima
-          slide.addText(`${r.label}  —  ${fmtPct(r.pctHoras)}`, {
-            x: trackX, y: rowY, w: trackW, h: labelH,
-            fontSize: 7.5, bold: false, color: '344054', fontFace: 'Arial',
-          });
-
+          const by = barTop + ri * barRowH;
+          const labelW = colW * 0.05;
+          const trackX = x + 0.08;
+          const trackW = colW - 0.16;
           // trilho
-          slide.addShape(pptx.ShapeType.roundRect, {
-            x: trackX, y: rowY + labelH, w: trackW, h: barH,
-            fill: { color: 'E4EDF2' }, line: { type: 'none' }, rectRadius: 0.04,
-          });
-          // barra colorida
-          if (fillW > 0.04) {
-            slide.addShape(pptx.ShapeType.roundRect, {
-              x: trackX, y: rowY + labelH, w: fillW, h: barH,
-              fill: { color: barColor }, line: { type: 'none' }, rectRadius: 0.04,
-            });
-          }
-          // valor na ponta da barra (se couber)
-          if (fillW > 0.45) {
-            slide.addText(fmtPct(r.pctHoras), {
-              x: trackX + fillW - 0.44, y: rowY + labelH, w: 0.42, h: barH,
-              align: 'right', valign: 'middle', fontSize: 7, bold: true, color: 'FFFFFF', fontFace: 'Arial',
-            });
-          }
+          slide.addShape(pptx.ShapeType.roundRect, { x: trackX, y: by + 0.18, w: trackW, h: 0.16, fill: { color: 'E8EEF2' }, line: { type: 'none' }, rectRadius: 0.05 });
+          // preenchimento
+          const fillW = Math.max(0.02, trackW * Math.min(100, r.pctHoras) / 100);
+          slide.addShape(pptx.ShapeType.roundRect, { x: trackX, y: by + 0.18, w: fillW, h: 0.16, fill: { color: PALETTE_PPT[r.idx] }, line: { type: 'none' }, rectRadius: 0.05 });
+          slide.addText(`${r.label}: ${fmtPct(r.pctHoras)}`, { x: trackX, y: by - 0.02, w: trackW, h: 0.2, fontSize: 8, color: '344054', fontFace: 'Arial' });
         });
       });
 
-      // ── rodapé ──
-      slide.addShape(pptx.ShapeType.rect, { x: 0, y: 7.3, w: 13.33, h: 0.2, fill: { color: '0A3D5C' }, line: { type: 'none' } });
-      slide.addText(
-        `Gerado em ${new Date().toLocaleDateString('pt-BR')}  ·  % Horas = horas da faixa / total do período  ·  Velocidade média simples por registro`,
-        { x: 0.4, y: 7.3, w: 12.5, h: 0.2, fontSize: 7.5, italic: true, color: 'AACFDF', fontFace: 'Arial', valign: 'middle' }
-      );
+      // rodapé
+      slide.addText('Velocidade média ponderada pelas horas. % Horas = horas da faixa / horas totais da operação no período.', {
+        x: 0.4, y: 7.05, w: 12.5, h: 0.3, fontSize: 8, italic: true, color: '98A2B3', fontFace: 'Arial',
+      });
 
       pptx.writeFile({ fileName: `painel_velocidade_${new Date().toISOString().slice(0, 10)}.pptx` });
     }
