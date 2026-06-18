@@ -240,9 +240,13 @@
       </div>
       <div class="panel-body">
         <div id="statusBox" class="notice warn">Importe pelo menos um CSV para começar.</div>
+        <label style="display:inline-flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid #d7eef5;background:#f7fbfd;border-radius:12px;cursor:pointer;margin-bottom:12px;font-size:14px;font-weight:700;color:var(--ink)">
+          <input id="incluirGeral" type="checkbox" checked style="width:18px;height:18px;accent-color:var(--primary)" />
+          🌐 Incluir coluna <strong>GERAL</strong> (soma de todas as bases importadas)
+        </label>
         <div class="actions">
           <button id="calcBtn" class="btn primary" type="button" disabled>Gerar cálculo</button>
-          <button id="pptBtn" class="btn ppt" type="button" disabled>⬇ Exportar PowerPoint (4 períodos em 1 slide)</button>
+          <button id="pptBtn" class="btn ppt" type="button" disabled>⬇ Exportar PowerPoint (em 1 slide)</button>
         </div>
       </div>
     </section>
@@ -718,6 +722,15 @@
         const calc = calcPeriod(rows, op, ranges, p.dStart, p.dEnd);
         periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges, dStart: p.dStart, dEnd: p.dEnd });
       });
+      // Coluna GERAL: soma de todas as bases importadas (sem filtro de data)
+      if ($('incluirGeral').checked) {
+        const allRows = [];
+        for (const b of state.bases) if (b.rows) allRows.push(...b.rows);
+        if (allRows.length) {
+          const calc = calcPeriod(allRows, op, ranges, '', '');
+          periods.push({ name: 'GERAL (todas as bases)', calc, ranges, dStart: '', dEnd: '', isGeral: true });
+        }
+      }
       if (!periods.length) { setStatus('Monte ao menos um período com uma base selecionada.', 'warn'); return; }
       state.lastResult = { periods, ranges, op: $('opFilter').value };
       renderResults(state.lastResult);
@@ -803,7 +816,7 @@
         x: 0.4, y: 0.82, w: 12.5, h: 0.35, fontSize: 11, color: '667085', fontFace: 'Arial',
       });
 
-      const periods = result.periods.slice(0, 4);
+      const periods = result.periods.slice(0, 5);
       const n = periods.length;
       const gap = 0.25;
       const startX = 0.4;
