@@ -510,15 +510,11 @@
     function loadedBases() {
       return state.bases.map((b, i) => ({ b, i })).filter(x => x.b.rows);
     }
-    // linhas de um período: base específica ou "Geral" (-2 = todas as bases juntas)
-    function periodRows(p) {
-      if (p.baseIdx === -2) {
-        const all = [];
-        for (const b of state.bases) if (b.rows) all.push(...b.rows);
-        return all;
-      }
+    // fontes de um período (array de arrays, sem concatenar): base específica ou "Geral" (-2)
+    function periodSources(p) {
+      if (p.baseIdx === -2) return state.bases.filter(b => b.rows).map(b => b.rows);
       const base = state.bases[p.baseIdx];
-      return base && base.rows ? base.rows : null;
+      return base && base.rows ? [base.rows] : [];
     }
     // intervalo de datas de um período (para auto-preencher)
     function periodRange(p) {
@@ -637,13 +633,13 @@
       let total = 0;
       const op = normText($('opFilter').value);
       for (const p of state.periods) {
-        const rows = periodRows(p);
-        if (!rows) continue;
-        for (const r of rows) {
-          if (op && !r.atividade.includes(op)) continue;
-          if (p.dStart && r.data && r.data < p.dStart) continue;
-          if (p.dEnd && r.data && r.data > p.dEnd) continue;
-          total++;
+        for (const rows of periodSources(p)) {
+          for (const r of rows) {
+            if (op && !r.atividade.includes(op)) continue;
+            if (p.dStart && r.data && r.data < p.dStart) continue;
+            if (p.dEnd && r.data && r.data > p.dEnd) continue;
+            total++;
+          }
         }
       }
       $('heroNum').textContent = fmtN(total);
@@ -673,24 +669,31 @@
       return -1;
     }
 
-    function calcPeriod(rows, op, ranges, dStart, dEnd) {
+    // Aceita uma fonte (array de linhas) OU várias fontes (array de arrays),
+    // evitando concatenar bases grandes (o spread estoura a pilha).
+    function calcPeriod(rowsOrSources, op, ranges, dStart, dEnd) {
+      const sources = (Array.isArray(rowsOrSources) && Array.isArray(rowsOrSources[0]))
+        ? rowsOrSources : [rowsOrSources];
       const buckets = {};
       for (const r of ranges) buckets[r.idx] = { horas: 0, count: 0, velSum: 0, equip: new Set(), frentes: new Set() };
       let totalHoras = 0, totalCount = 0, totalVelSum = 0, foraFaixa = 0, semVel = 0;
       const allEquip = new Set();
-      for (const row of rows) {
-        if (op && !row.atividade.includes(op)) continue;
-        if (dStart && row.data && row.data < dStart) continue;
-        if (dEnd && row.data && row.data > dEnd) continue;
-        if (!isFinite(row.vel)) { semVel++; continue; }
-        const idx = rangeOf(row.vel, ranges);
-        totalHoras += row.horas; totalCount++; totalVelSum += row.vel;
-        if (row.equip) allEquip.add(row.equip);
-        if (idx === -1) { foraFaixa++; continue; }
-        const b = buckets[idx];
-        b.horas += row.horas; b.count++; b.velSum += row.vel;
-        if (row.equip) b.equip.add(row.equip);
-        if (row.frente) b.frentes.add(row.frente);
+      for (const rows of sources) {
+        if (!rows) continue;
+        for (const row of rows) {
+          if (op && !row.atividade.includes(op)) continue;
+          if (dStart && row.data && row.data < dStart) continue;
+          if (dEnd && row.data && row.data > dEnd) continue;
+          if (!isFinite(row.vel)) { semVel++; continue; }
+          const idx = rangeOf(row.vel, ranges);
+          totalHoras += row.horas; totalCount++; totalVelSum += row.vel;
+          if (row.equip) allEquip.add(row.equip);
+          if (idx === -1) { foraFaixa++; continue; }
+          const b = buckets[idx];
+          b.horas += row.horas; b.count++; b.velSum += row.vel;
+          if (row.equip) b.equip.add(row.equip);
+          if (row.frente) b.frentes.add(row.frente);
+        }
       }
       // Se as horas não vieram (coluna de hora ausente), distribui por nº de registros
       const hasHoras = totalHoras > 0;
@@ -719,18 +722,17 @@
         if (!state.bases.some(b => b.rows)) { setStatus('Importe pelo menos uma base CSV antes de calcular.', 'warn'); return; }
         const periods = [];
         state.periods.forEach((p, i) => {
-          const rows = periodRows(p);
-          if (!rows || !rows.length) return;
-          const calc = calcPeriod(rows, op, ranges, p.dStart, p.dEnd);
+          const sources = periodSources(p);
+          if (!sources.length) return;
+          const calc = calcPeriod(sources, op, ranges, p.dStart, p.dEnd);
           periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges, dStart: p.dStart, dEnd: p.dEnd });
         });
         // Coluna GERAL: soma de todas as bases importadas (sem filtro de data)
         const incGeral = $('incluirGeral') && $('incluirGeral').checked;
         if (incGeral) {
-          const allRows = [];
-          for (const b of state.bases) if (b.rows) allRows.push(...b.rows);
-          if (allRows.length) {
-            const calc = calcPeriod(allRows, op, ranges, '', '');
+          const sources = state.bases.filter(b => b.rows).map(b => b.rows);
+          if (sources.length) {
+            const calc = calcPeriod(sources, op, ranges, '', '');
             periods.push({ name: 'GERAL (todas as bases)', calc, ranges, dStart: '', dEnd: '', isGeral: true });
           }
         }
