@@ -406,13 +406,14 @@
         const ini = pick(r, ['hora_inicial', 'horainicial', 'hora_inicio', 'inicio', 'hora_inicial_']);
         const fim = pick(r, ['hora_final', 'horafinal', 'hora_fim', 'fim', 'hora_final_']);
         const horas = calcHoras(ini, fim);
+        const dataRaw = pick(r, ['data', 'dia', 'data_apontamento', 'data_evento', 'data_inicial', 'data_inicio', 'dt', 'date', 'data_hora', 'datahora', 'data_ponto']);
         if (!diagDone) {
           console.log('[DIAG] colunas detectadas:', Object.keys(r));
-          console.log('[DIAG] amostra → atividade:', atividade, '| velRaw:', velRaw, '→', vel, '| ini:', ini, '| fim:', fim, '| horas:', horas);
+          console.log('[DIAG] amostra → atividade:', atividade, '| dataRaw:', JSON.stringify(dataRaw), '→ normDate:', JSON.stringify(normDate(dataRaw)), '| velRaw:', velRaw, '→', vel, '| ini:', ini, '| fim:', fim, '| horas:', horas);
           diagDone = true;
         }
         out.push({
-          data: normDate(pick(r, ['data', 'dia', 'data_apontamento'])),
+          data: normDate(dataRaw),
           atividade: normText(atividade),
           vel: isFinite(vel) ? vel : NaN,
           horas: isFinite(horas) ? Math.max(0, horas) : 0,
