@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel por Faixa de Velocidade — Corte Cana Mecanizado</title>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <style>
+    :root {
+      --bg: #eef3f7;
+      --card: #ffffff;
+      --ink: #132033;
+      --muted: #667085;
+      --line: #d8e1ea;
+      --primary: #0b5d7c;
+      --primary-dark: #06445d;
+      --primary-soft: #e7f4f8;
+      --green: #087443;
+      --red: #b42318;
+      --orange: #b54708;
+      --shadow: 0 14px 34px rgba(16, 24, 40, 0.09);
+      --r1: #0b7497;
+      --r2: #1f9d6b;
+      --r3: #c98a00;
+      --r4: #b54708;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #e6f1f5 0%, var(--bg) 260px);
+      color: var(--ink);
+    }
+    .app { max-width: 1500px; margin: 0 auto; padding: 16px; }
+
+    .hero {
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      padding: 22px; border-radius: 22px;
+      background: linear-gradient(135deg, #063f58, #0b7497);
+      color: white; box-shadow: var(--shadow);
+    }
+    .hero h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.4px; }
+    .hero p { margin: 0; max-width: 820px; line-height: 1.45; color: rgba(255,255,255,.85); font-size: 14px; }
+    .hero-badge {
+      background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25);
+      padding: 12px 18px; border-radius: 16px; text-align: center; min-width: 150px;
+    }
+    .hero-badge .b-num { font-size: 30px; font-weight: 900; }
+    .hero-badge .b-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; opacity: .85; margin-top: 2px; }
+
+    .panel {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 22px; margin-top: 16px; box-shadow: var(--shadow); overflow: hidden;
+    }
+    .panel-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 16px 18px; border-bottom: 1px solid var(--line); background: #fbfdff;
+    }
+    .panel-title { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 10px; }
+    .step {
+      width: 28px; height: 28px; border-radius: 999px; background: var(--primary);
+      color: white; font-weight: 900; font-size: 14px; display: inline-flex;
+      align-items: center; justify-content: center;
+    }
+    .panel-body { padding: 18px; }
+
+    /* CSV import */
+    .files-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    }
+    .file-card {
+      border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: #f9fbfd;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .file-card h4 { margin: 0; font-size: 13px; color: var(--primary-dark); display: flex; align-items: center; gap: 7px; }
+    .file-card .pname {
+      width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+      font-size: 13px; font-weight: 700; color: var(--ink); outline: none;
+    }
+    .dropzone {
+      border: 2px dashed #b9cedb; border-radius: 12px; padding: 16px 10px; text-align: center;
+      cursor: pointer; transition: all .15s; background: #fff; font-size: 12px; color: var(--muted);
+    }
+    .dropzone:hover, .dropzone.drag { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-dark); }
+    .dropzone.loaded { border-style: solid; border-color: #8fd0ad; background: #effaf3; color: #0c6b43; font-weight: 700; }
+    .dropzone input { display: none; }
+    .file-stat { font-size: 11px; color: var(--muted); text-align: center; }
+    .file-clear { font-size: 11px; color: var(--red); cursor: pointer; text-align: center; text-decoration: underline; }
+
+    /* speed ranges */
+    .ranges-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .range-card {
+      border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: #fff;
+      border-top: 4px solid var(--rc, var(--primary));
+    }
+    .range-card.off { opacity: .45; }
+    .range-card h4 { margin: 0 0 10px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; }
+    .range-card label { display: block; font-size: 11px; font-weight: 800; color: #475467; margin: 8px 0 4px; text-transform: uppercase; letter-spacing: .3px; }
+    .range-card input[type=text], .range-card input[type=number] {
+      width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+      font-size: 13px; font-weight: 700; color: var(--ink); outline: none;
+    }
+    .range-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .switch { position: relative; display: inline-block; width: 38px; height: 22px; }
+    .switch input { display: none; }
+    .slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 999px; transition: .2s; cursor: pointer; }
+    .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+    .switch input:checked + .slider { background: var(--green); }
+    .switch input:checked + .slider::before { transform: translateX(16px); }
+
+    .op-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .op-row label { font-size: 13px; font-weight: 800; color: #475467; white-space: nowrap; }
+    .op-row input {
+      flex: 1; min-width: 240px; max-width: 420px; border: 1px solid var(--line);
+      border-radius: 11px; padding: 10px 12px; font-size: 14px; font-weight: 700; color: var(--ink); outline: none;
+    }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 12px;
+      padding: 11px 18px; font-weight: 800; cursor: pointer; font-size: 14px;
+    }
+    .btn:hover { background: #f5f8fb; }
+    .btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn.primary:hover { background: var(--primary-dark); }
+    .btn.ppt { background: #c43e1c; color: white; border-color: #c43e1c; }
+    .btn.ppt:hover { background: #a5300f; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .notice {
+      border-radius: 14px; padding: 12px 14px; font-size: 14px; line-height: 1.4;
+      border: 1px solid var(--line); background: #fff; color: #344054; margin-bottom: 14px;
+    }
+    .notice.ok { background: #ecfdf3; border-color: #abefc6; color: #067647; }
+    .notice.warn { background: #fffaeb; border-color: #fedf89; color: #93370d; }
+
+    /* results */
+    .period-block { margin-bottom: 22px; }
+    .period-title {
+      display: flex; align-items: center; gap: 10px; margin: 0 0 12px;
+      font-size: 17px; font-weight: 900; color: var(--primary-dark);
+    }
+    .period-title .chip { font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-dark); }
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+    .scard {
+      border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: #fff;
+      border-left: 5px solid var(--sc, var(--primary)); position: relative; overflow: hidden;
+    }
+    .scard .s-lbl { font-size: 12px; font-weight: 800; color: var(--ink); }
+    .scard .s-range { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .scard .s-big { font-size: 26px; font-weight: 900; margin-top: 10px; letter-spacing: -.5px; }
+    .scard .s-sub { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+    .scard .s-bar { height: 6px; border-radius: 999px; background: #eef2f5; margin-top: 10px; overflow: hidden; }
+    .scard .s-bar span { display: block; height: 100%; background: var(--sc, var(--primary)); }
+
+    .rtable-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { background: var(--primary-dark); color: white; font-weight: 900; position: sticky; top: 0; }
+    tbody tr:nth-child(even) td { background: #f7fbfd; }
+    tbody tr.total-row td { font-weight: 900; background: #eaf4f8; border-top: 2px solid var(--primary); }
+    .dot-c { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
+
+    .loading-bar { height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.25); border: 1px solid rgba(255,255,255,.35); margin-top: 12px; width: 200px; }
+    .loading-bar span { display: block; height: 100%; width: 0%; background: #fff; transition: width .15s linear; }
+
+    @media (max-width: 1150px) {
+      .files-grid, .ranges-grid, .cards { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .files-grid, .ranges-grid, .cards { grid-template-columns: 1fr; }
+      .hero { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div>
+        <h1>Painel por Faixa de Velocidade</h1>
+        <p>
+          Importe até 4 bases CSV (uma por período), defina até 4 faixas de velocidade e gere o comparativo.
+          Considera apenas a operação <strong>Corte Cana Mecanizado</strong>. A velocidade vem da coluna
+          <strong>velocidade_media</strong> e as horas são calculadas de <strong>hora_inicial → hora_final</strong>.
+          A exportação gera um único slide com os 4 períodos lado a lado.
+        </p>
+        <div class="loading-bar"><span id="loadingBar"></span></div>
+      </div>
+      <div class="hero-badge">
+        <div id="heroNum" class="b-num">0</div>
+        <div class="b-lbl">Registros válidos</div>
+      </div>
+    </header>
+
+    <!-- STEP 1: CSV import -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">1</span> Importar bases CSV (até 4 períodos)</h2>
+      </div>
+      <div class="panel-body">
+        <div id="filesGrid" class="files-grid"></div>
+      </div>
+    </section>
+
+    <!-- STEP 2: speed ranges -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">2</span> Faixas de velocidade (km/h)</h2>
+        <div class="actions"><button id="resetRangesBtn" class="btn" type="button">Restaurar padrão</button></div>
+      </div>
+      <div class="panel-body">
+        <div id="rangesGrid" class="ranges-grid"></div>
+        <div class="op-row">
+          <label>Filtrar operação (atividade):</label>
+          <input id="opFilter" type="text" value="Corte Cana Mecanizado" />
+          <span style="font-size:12px;color:var(--muted)">Comparação ignora acentos e maiúsculas.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: actions -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">3</span> Calcular e exportar</h2>
+      </div>
+      <div class="panel-body">
+        <div id="statusBox" class="notice warn">Importe pelo menos um CSV para começar.</div>
+        <div class="actions">
+          <button id="calcBtn" class="btn primary" type="button" disabled>Gerar cálculo</button>
+          <button id="pptBtn" class="btn ppt" type="button" disabled>⬇ Exportar PowerPoint (4 períodos em 1 slide)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <div id="results"></div>
+  </div>
+
+  <script>
+    // ───────────────────────── estado ─────────────────────────
+    const PALETTE = ['#0b7497', '#1f9d6b', '#c98a00', '#b54708'];
+    const PALETTE_PPT = ['0B7497', '1F9D6B', 'C98A00', 'B54708'];
+
+    const state = {
+      periods: [
+        { name: 'Período 1', rows: null, fileName: '' },
+        { name: 'Período 2', rows: null, fileName: '' },
+        { name: 'Período 3', rows: null, fileName: '' },
+        { name: 'Período 4', rows: null, fileName: '' },
+      ],
+      ranges: defaultRanges(),
+      lastResult: null,
+    };
+
+    function defaultRanges() {
+      return [
+        { label: 'Lenta',        min: 0,   max: 4,    on: true },
+        { label: 'Ideal baixa',  min: 4,   max: 6,    on: true },
+        { label: 'Ideal alta',   min: 6,   max: 8,    on: true },
+        { label: 'Rápida',       min: 8,   max: 99,   on: true },
+      ];
+    }
+
+    const $ = (id) => document.getElementById(id);
+
+    // ───────────────────────── util ─────────────────────────
+    function normText(s) {
+      return (s == null ? '' : String(s)).normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toUpperCase().replace(/\s+/g, ' ').trim();
+    }
+    function parseNum(v) {
+      if (v == null) return NaN;
+      let t = String(v).trim();
+      if (!t) return NaN;
+      if (t.includes(',') && t.includes('.')) t = t.replace(/\./g, '').replace(',', '.');
+      else if (t.includes(',')) t = t.replace(',', '.');
+      const n = parseFloat(t);
+      return isFinite(n) ? n : NaN;
+    }
+    function calcHoras(ini, fim) {
+      if (!ini || !fim) return 0;
+      const toTs = s => /^\d{1,2}:\d{2}/.test(String(s)) ? `1970-01-01T${s}` : String(s);
+      const a = new Date(toTs(ini)), b = new Date(toTs(fim));
+      if (isNaN(a) || isNaN(b)) return 0;
+      const diff = (b - a) / 3600000;
+      return diff < 0 ? diff + 24 : diff;
+    }
+    function fmtH(h) { return (h || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+    function fmtPct(p) { return (p || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
+    function fmtN(n) { return (n || 0).toLocaleString('pt-BR'); }
+    function fmtV(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function setProgress(p) { $('loadingBar').style.width = `${Math.max(0, Math.min(100, p))}%`; }
+    function setStatus(msg, kind) {
+      const b = $('statusBox'); b.textContent = msg;
+      b.className = 'notice ' + (kind || 'warn');
+    }
+
+    // ───────────────────────── CSV parser ─────────────────────────
+    function detectDelimiter(headerLine) {
+      const counts = { ',': 0, ';': 0, '\t': 0 };
+      for (const ch of headerLine) if (ch in counts) counts[ch]++;
+      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0] || ',';
+    }
+    function parseCSV(text) {
+      // remove BOM
+      text = text.replace(/^﻿/, '');
+      const firstNL = text.search(/\r?\n/);
+      const headerLine = firstNL === -1 ? text : text.slice(0, firstNL);
+      const delim = detectDelimiter(headerLine);
+      const rows = [];
+      let field = '', row = [], inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQuotes) {
+          if (c === '"') {
+            if (text[i + 1] === '"') { field += '"'; i++; }
+            else inQuotes = false;
+          } else field += c;
+        } else {
+          if (c === '"') inQuotes = true;
+          else if (c === delim) { row.push(field); field = ''; }
+          else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+          else if (c === '\r') { /* ignore */ }
+          else field += c;
+        }
+      }
+      if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+      if (!rows.length) return { header: [], data: [] };
+      const header = rows[0].map(h => normCol(h));
+      const data = [];
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i].length === 1 && rows[i][0].trim() === '') continue;
+        const obj = {};
+        for (let j = 0; j < header.length; j++) obj[header[j]] = (rows[i][j] != null ? rows[i][j].trim() : '');
+        data.push(obj);
+      }
+      return { header, data };
+    }
+    // normaliza nome de coluna p/ chave previsível
+    function normCol(h) {
+      return (h || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').trim();
+    }
+    // mapeia colunas com nomes alternativos
+    function pick(obj, names) {
+      for (const n of names) if (n in obj && obj[n] !== '') return obj[n];
+      for (const n of names) if (n in obj) return obj[n];
+      return '';
+    }
+
+    function normalizeRows(data) {
+      const out = [];
+      for (const r of data) {
+        const atividade = pick(r, ['atividade', 'descricao_da_operacao', 'operacao', 'descricao_operacao']);
+        const vel = parseNum(pick(r, ['velocidade_media', 'velocidade', 'vel_media', 'velocidademedia']));
+        const ini = pick(r, ['hora_inicial', 'horainicial', 'hora_inicio', 'inicio']);
+        const fim = pick(r, ['hora_final', 'horafinal', 'hora_fim', 'fim']);
+        const horas = calcHoras(ini, fim);
+        out.push({
+          atividade: normText(atividade),
+          vel: isFinite(vel) ? vel : NaN,
+          horas: isFinite(horas) ? Math.max(0, horas) : 0,
+          equip: pick(r, ['codigo_equipamento', 'codigoequipamento', 'frota']),
+          frente: pick(r, ['frente', 'descricao_do_grupo_de_equipamento']),
+        });
+      }
+      return out;
+    }
+
+    // ───────────────────────── render UI ─────────────────────────
+    function renderFiles() {
+      $('filesGrid').innerHTML = state.periods.map((p, i) => {
+        const loaded = !!p.rows;
+        const n = loaded ? p.rows.length : 0;
+        return `
+          <div class="file-card">
+            <h4>📁 CSV ${i + 1}</h4>
+            <input class="pname" data-i="${i}" type="text" value="${escapeHtml(p.name)}" placeholder="Nome do período" />
+            <label class="dropzone ${loaded ? 'loaded' : ''}" data-i="${i}" id="dz${i}">
+              ${loaded ? `✓ ${escapeHtml(p.fileName || 'arquivo carregado')}` : 'Clique ou arraste o CSV aqui'}
+              <input type="file" accept=".csv,text/csv" data-i="${i}" />
+            </label>
+            ${loaded ? `<div class="file-stat">${fmtN(n)} linhas lidas</div><div class="file-clear" data-i="${i}">remover</div>` : `<div class="file-stat">nenhum arquivo</div>`}
+          </div>`;
+      }).join('');
+
+      // listeners
+      $('filesGrid').querySelectorAll('input.pname').forEach(el => {
+        el.addEventListener('input', e => { state.periods[+e.target.dataset.i].name = e.target.value; });
+      });
+      $('filesGrid').querySelectorAll('input[type=file]').forEach(el => {
+        el.addEventListener('change', e => {
+          const f = e.target.files[0]; if (f) loadFile(+e.target.dataset.i, f);
+        });
+      });
+      $('filesGrid').querySelectorAll('.file-clear').forEach(el => {
+        el.addEventListener('click', e => {
+          const i = +e.target.dataset.i;
+          state.periods[i].rows = null; state.periods[i].fileName = '';
+          renderFiles(); refreshHero(); updateButtons();
+        });
+      });
+      // drag&drop
+      state.periods.forEach((_, i) => {
+        const dz = $('dz' + i); if (!dz) return;
+        ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+        ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+        dz.addEventListener('drop', e => {
+          const f = e.dataTransfer.files[0]; if (f) loadFile(i, f);
+        });
+      });
+    }
+
+    function loadFile(i, file) {
+      setProgress(20);
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const { data } = parseCSV(reader.result);
+          state.periods[i].rows = normalizeRows(data);
+          state.periods[i].fileName = file.name;
+          if (!state.periods[i].name || /^Período \d$/.test(state.periods[i].name)) {
+            state.periods[i].name = file.name.replace(/\.csv$/i, '');
+          }
+          setProgress(100);
+          setTimeout(() => setProgress(0), 400);
+          renderFiles(); refreshHero(); updateButtons();
+          setStatus(`CSV ${i + 1} carregado: ${fmtN(data.length)} linhas. Configure as faixas e clique em Gerar cálculo.`, 'ok');
+        } catch (err) {
+          setProgress(0);
+          setStatus(`Erro ao ler o CSV ${i + 1}: ${err.message || err}`, 'warn');
+        }
+      };
+      reader.onerror = () => { setProgress(0); setStatus(`Falha ao ler o arquivo CSV ${i + 1}.`, 'warn'); };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function renderRanges() {
+      $('rangesGrid').innerHTML = state.ranges.map((r, i) => `
+        <div class="range-card ${r.on ? '' : 'off'}" style="--rc:${PALETTE[i]}">
+          <h4>
+            <span style="color:${PALETTE[i]}">● Faixa ${i + 1}</span>
+            <label class="switch"><input type="checkbox" data-i="${i}" data-k="on" ${r.on ? 'checked' : ''}/><span class="slider"></span></label>
+          </h4>
+          <label>Rótulo</label>
+          <input type="text" data-i="${i}" data-k="label" value="${escapeHtml(r.label)}" />
+          <div class="range-row">
+            <div><label>Mín (km/h)</label><input type="number" step="0.1" data-i="${i}" data-k="min" value="${r.min}" /></div>
+            <div><label>Máx (km/h)</label><input type="number" step="0.1" data-i="${i}" data-k="max" value="${r.max}" /></div>
+          </div>
+        </div>`).join('');
+      $('rangesGrid').querySelectorAll('input').forEach(el => {
+        el.addEventListener('input', e => {
+          const i = +e.target.dataset.i, k = e.target.dataset.k;
+          if (k === 'on') state.ranges[i].on = e.target.checked;
+          else if (k === 'label') state.ranges[i].label = e.target.value;
+          else state.ranges[i][k] = parseNum(e.target.value);
+          if (k === 'on') renderRanges();
+        });
+      });
+    }
+
+    function refreshHero() {
+      let total = 0;
+      const op = normText($('opFilter').value);
+      for (const p of state.periods) {
+        if (!p.rows) continue;
+        for (const r of p.rows) if (!op || r.atividade.includes(op)) total++;
+      }
+      $('heroNum').textContent = fmtN(total);
+    }
+
+    function updateButtons() {
+      const any = state.periods.some(p => p.rows);
+      $('calcBtn').disabled = !any;
+      $('pptBtn').disabled = !state.lastResult;
+    }
+
+    function escapeHtml(s) {
+      return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // ───────────────────────── cálculo ─────────────────────────
+    function activeRanges() {
+      return state.ranges.map((r, i) => ({ ...r, idx: i })).filter(r => r.on && isFinite(r.min) && isFinite(r.max) && r.max > r.min);
+    }
+    function rangeOf(vel, ranges) {
+      for (const r of ranges) {
+        if (vel >= r.min && vel < r.max) return r.idx;
+      }
+      // inclui o limite superior na última faixa ativa
+      const last = ranges[ranges.length - 1];
+      if (last && vel === last.max) return last.idx;
+      return -1;
+    }
+
+    function calcPeriod(rows, op, ranges) {
+      const buckets = {};
+      for (const r of ranges) buckets[r.idx] = { horas: 0, count: 0, velSum: 0, equip: new Set(), frentes: new Set() };
+      let totalHoras = 0, totalCount = 0, totalVelW = 0, foraFaixa = 0, semVel = 0;
+      const allEquip = new Set();
+      for (const row of rows) {
+        if (op && !row.atividade.includes(op)) continue;
+        if (!isFinite(row.vel)) { semVel++; continue; }
+        const idx = rangeOf(row.vel, ranges);
+        totalHoras += row.horas; totalCount++; totalVelW += row.vel * row.horas;
+        if (row.equip) allEquip.add(row.equip);
+        if (idx === -1) { foraFaixa++; continue; }
+        const b = buckets[idx];
+        b.horas += row.horas; b.count++; b.velSum += row.vel * row.horas;
+        if (row.equip) b.equip.add(row.equip);
+        if (row.frente) b.frentes.add(row.frente);
+      }
+      const perRange = ranges.map(r => {
+        const b = buckets[r.idx];
+        return {
+          idx: r.idx, label: r.label, min: r.min, max: r.max,
+          horas: b.horas, count: b.count,
+          pctHoras: totalHoras > 0 ? (b.horas / totalHoras) * 100 : 0,
+          velMedia: b.horas > 0 ? b.velSum / b.horas : 0,
+          nEquip: b.equip.size, nFrentes: b.frentes.size,
+        };
+      });
+      return {
+        perRange, totalHoras, totalCount, foraFaixa, semVel,
+        velMediaGeral: totalHoras > 0 ? totalVelW / totalHoras : 0,
+        nEquip: allEquip.size,
+      };
+    }
+
+    function generate() {
+      const op = normText($('opFilter').value);
+      const ranges = activeRanges();
+      if (!ranges.length) { setStatus('Defina pelo menos uma faixa de velocidade válida (máx > mín).', 'warn'); return; }
+      const periods = [];
+      state.periods.forEach((p, i) => {
+        if (!p.rows) return;
+        const calc = calcPeriod(p.rows, op, ranges);
+        periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges });
+      });
+      if (!periods.length) { setStatus('Importe ao menos um CSV.', 'warn'); return; }
+      state.lastResult = { periods, ranges, op: $('opFilter').value };
+      renderResults(state.lastResult);
+      updateButtons();
+      setStatus(`Cálculo gerado para ${periods.length} período(s). Use o botão de PowerPoint para exportar.`, 'ok');
+    }
+
+    // ───────────────────────── render resultados ─────────────────────────
+    function renderResults(result) {
+      const html = result.periods.map(p => {
+        const c = p.calc;
+        const cards = c.perRange.map(r => {
+          const color = PALETTE[r.idx];
+          const w = Math.max(0, Math.min(100, r.pctHoras));
+          return `
+            <div class="scard" style="--sc:${color}">
+              <div class="s-lbl">${escapeHtml(r.label)}</div>
+              <div class="s-range">${fmtV(r.min)} – ${fmtV(r.max)} km/h</div>
+              <div class="s-big">${fmtPct(r.pctHoras)}</div>
+              <div class="s-sub">${fmtH(r.horas)} h · ${fmtN(r.count)} reg.<br>${fmtN(r.nEquip)} equip. · vel. méd. ${fmtV(r.velMedia)}</div>
+              <div class="s-bar"><span style="width:${w}%"></span></div>
+            </div>`;
+        }).join('');
+        const tRows = c.perRange.map(r => `
+          <tr>
+            <td><span class="dot-c" style="background:${PALETTE[r.idx]}"></span>${escapeHtml(r.label)} <span style="color:var(--muted)">(${fmtV(r.min)}–${fmtV(r.max)})</span></td>
+            <td>${fmtH(r.horas)}</td>
+            <td>${fmtPct(r.pctHoras)}</td>
+            <td>${fmtN(r.count)}</td>
+            <td>${fmtN(r.nEquip)}</td>
+            <td>${fmtV(r.velMedia)}</td>
+          </tr>`).join('');
+        return `
+          <div class="period-block">
+            <h3 class="period-title">${escapeHtml(p.name)}
+              <span class="chip">${fmtH(c.totalHoras)} h totais</span>
+              <span class="chip">${fmtN(c.nEquip)} equipamentos</span>
+              <span class="chip">vel. média ${fmtV(c.velMediaGeral)} km/h</span>
+            </h3>
+            <div class="cards">${cards}</div>
+            <div class="rtable-wrap">
+              <table>
+                <thead><tr><th>Faixa</th><th>Horas</th><th>% Horas</th><th>Registros</th><th>Equip.</th><th>Vel. média</th></tr></thead>
+                <tbody>
+                  ${tRows}
+                  <tr class="total-row">
+                    <td>TOTAL</td><td>${fmtH(c.totalHoras)}</td><td>100,0%</td>
+                    <td>${fmtN(c.totalCount)}</td><td>${fmtN(c.nEquip)}</td><td>${fmtV(c.velMediaGeral)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+      }).join('');
+      $('results').innerHTML = `
+        <section class="panel">
+          <div class="panel-head"><h2 class="panel-title">📊 Resultados por faixa de velocidade</h2></div>
+          <div class="panel-body">${html}</div>
+        </section>`;
+    }
+
+    // ───────────────────────── export PPTX (1 slide, 4 períodos) ─────────────────────────
+    function exportPptx() {
+      const result = state.lastResult;
+      if (!result) return;
+      const pptx = new PptxGenJS();
+      pptx.defineLayout({ name: 'WIDE', width: 13.33, height: 7.5 });
+      pptx.layout = 'WIDE';
+      const slide = pptx.addSlide();
+      slide.background = { color: 'F2F6F9' };
+
+      // título
+      slide.addText('Análise por Faixa de Velocidade — Corte Cana Mecanizado', {
+        x: 0.4, y: 0.25, w: 12.5, h: 0.6, fontSize: 22, bold: true, color: '06445D', fontFace: 'Arial',
+      });
+      slide.addText(`Operação: ${result.op}  ·  Faixas (km/h): ` +
+        result.ranges.map(r => `${r.label} ${fmtV(r.min)}–${fmtV(r.max)}`).join('   |   '), {
+        x: 0.4, y: 0.82, w: 12.5, h: 0.35, fontSize: 11, color: '667085', fontFace: 'Arial',
+      });
+
+      const periods = result.periods.slice(0, 4);
+      const n = periods.length;
+      const gap = 0.25;
+      const startX = 0.4;
+      const totalW = 12.53;
+      const colW = (totalW - gap * (n - 1)) / n;
+      const topY = 1.35;
+      const colH = 5.75;
+
+      periods.forEach((p, pi) => {
+        const x = startX + pi * (colW + gap);
+        const c = p.calc;
+        // cabeçalho do período
+        slide.addShape(pptx.ShapeType.roundRect, {
+          x, y: topY, w: colW, h: 0.7, fill: { color: '0B7497' }, line: { color: '0B7497' }, rectRadius: 0.06,
+        });
+        slide.addText(p.name, { x, y: topY + 0.04, w: colW, h: 0.34, align: 'center', fontSize: 13, bold: true, color: 'FFFFFF', fontFace: 'Arial' });
+        slide.addText(`${fmtH(c.totalHoras)} h · ${fmtN(c.nEquip)} equip · ${fmtV(c.velMediaGeral)} km/h`, {
+          x, y: topY + 0.36, w: colW, h: 0.3, align: 'center', fontSize: 8.5, color: 'D6EAF2', fontFace: 'Arial',
+        });
+
+        // tabela de faixas
+        const tblY = topY + 0.85;
+        const header = [
+          { text: 'Faixa', options: { bold: true, color: 'FFFFFF', fill: { color: '06445D' }, fontSize: 9, align: 'left' } },
+          { text: '% Hrs', options: { bold: true, color: 'FFFFFF', fill: { color: '06445D' }, fontSize: 9, align: 'center' } },
+          { text: 'Horas', options: { bold: true, color: 'FFFFFF', fill: { color: '06445D' }, fontSize: 9, align: 'center' } },
+          { text: 'Vel', options: { bold: true, color: 'FFFFFF', fill: { color: '06445D' }, fontSize: 9, align: 'center' } },
+        ];
+        const body = c.perRange.map(r => ([
+          { text: r.label, options: { color: PALETTE_PPT[r.idx], bold: true, fontSize: 8.5, align: 'left' } },
+          { text: fmtPct(r.pctHoras), options: { fontSize: 8.5, align: 'center' } },
+          { text: fmtH(r.horas), options: { fontSize: 8.5, align: 'center' } },
+          { text: fmtV(r.velMedia), options: { fontSize: 8.5, align: 'center' } },
+        ]));
+        const totalRow = [
+          { text: 'TOTAL', options: { bold: true, fontSize: 8.5, align: 'left', fill: { color: 'EAF4F8' } } },
+          { text: '100%', options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'EAF4F8' } } },
+          { text: fmtH(c.totalHoras), options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'EAF4F8' } } },
+          { text: fmtV(c.velMediaGeral), options: { bold: true, fontSize: 8.5, align: 'center', fill: { color: 'EAF4F8' } } },
+        ];
+        slide.addTable([header, ...body, totalRow], {
+          x, y: tblY, w: colW, colW: [colW * 0.40, colW * 0.20, colW * 0.22, colW * 0.18],
+          border: { type: 'solid', color: 'D8E1EA', pt: 0.5 },
+          rowH: 0.32, valign: 'middle', fontFace: 'Arial',
+        });
+
+        // barras de % por faixa
+        const barTop = tblY + 0.32 * (c.perRange.length + 1) + 0.25;
+        const barAreaH = topY + colH - barTop - 0.1;
+        const barRowH = Math.min(0.62, barAreaH / c.perRange.length);
+        c.perRange.forEach((r, ri) => {
+          const by = barTop + ri * barRowH;
+          const labelW = colW * 0.05;
+          const trackX = x + 0.08;
+          const trackW = colW - 0.16;
+          // trilho
+          slide.addShape(pptx.ShapeType.roundRect, { x: trackX, y: by + 0.18, w: trackW, h: 0.16, fill: { color: 'E8EEF2' }, line: { type: 'none' }, rectRadius: 0.05 });
+          // preenchimento
+          const fillW = Math.max(0.02, trackW * Math.min(100, r.pctHoras) / 100);
+          slide.addShape(pptx.ShapeType.roundRect, { x: trackX, y: by + 0.18, w: fillW, h: 0.16, fill: { color: PALETTE_PPT[r.idx] }, line: { type: 'none' }, rectRadius: 0.05 });
+          slide.addText(`${r.label}: ${fmtPct(r.pctHoras)}`, { x: trackX, y: by - 0.02, w: trackW, h: 0.2, fontSize: 8, color: '344054', fontFace: 'Arial' });
+        });
+      });
+
+      // rodapé
+      slide.addText('Velocidade média ponderada pelas horas. % Horas = horas da faixa / horas totais da operação no período.', {
+        x: 0.4, y: 7.05, w: 12.5, h: 0.3, fontSize: 8, italic: true, color: '98A2B3', fontFace: 'Arial',
+      });
+
+      pptx.writeFile({ fileName: `painel_velocidade_${new Date().toISOString().slice(0, 10)}.pptx` });
+    }
+
+    // ───────────────────────── init ─────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      renderFiles();
+      renderRanges();
+      $('opFilter').addEventListener('input', refreshHero);
+      $('calcBtn').addEventListener('click', generate);
+      $('pptBtn').addEventListener('click', exportPptx);
+      $('resetRangesBtn').addEventListener('click', () => { state.ranges = defaultRanges(); renderRanges(); });
+      updateButtons();
+    });
+  </script>
+</body>
+</html>
