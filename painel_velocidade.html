@@ -244,10 +244,10 @@
 
     const state = {
       periods: [
-        { name: 'Período 1', rows: null, fileName: '' },
-        { name: 'Período 2', rows: null, fileName: '' },
-        { name: 'Período 3', rows: null, fileName: '' },
-        { name: 'Período 4', rows: null, fileName: '' },
+        { name: 'Período 1', rows: null, fileName: '', dStart: '', dEnd: '' },
+        { name: 'Período 2', rows: null, fileName: '', dStart: '', dEnd: '' },
+        { name: 'Período 3', rows: null, fileName: '', dStart: '', dEnd: '' },
+        { name: 'Período 4', rows: null, fileName: '', dStart: '', dEnd: '' },
       ],
       ranges: defaultRanges(),
       lastResult: null,
@@ -289,6 +289,7 @@
     function fmtH(h) { return (h || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
     function fmtPct(p) { return (p || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
     function fmtN(n) { return (n || 0).toLocaleString('pt-BR'); }
+    function fmtDateBr(d) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : (d || ''); }
     function fmtV(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function setProgress(p) { $('loadingBar').style.width = `${Math.max(0, Math.min(100, p))}%`; }
     function setStatus(msg, kind) {
@@ -349,15 +350,37 @@
       return '';
     }
 
+    // converte data para AAAA-MM-DD (aceita DD/MM/AAAA, AAAA-MM-DD, com hora junto)
+    function normDate(v) {
+      if (!v) return '';
+      let t = String(v).trim();
+      t = t.split(/[ T]/)[0]; // remove hora se vier junto
+      let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+      m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+      m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+      if (m) return `20${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+      return t;
+    }
+
     function normalizeRows(data) {
       const out = [];
+      let diagDone = false;
       for (const r of data) {
-        const atividade = pick(r, ['atividade', 'descricao_da_operacao', 'operacao', 'descricao_operacao']);
-        const vel = parseNum(pick(r, ['velocidade_media', 'velocidade', 'vel_media', 'velocidademedia']));
-        const ini = pick(r, ['hora_inicial', 'horainicial', 'hora_inicio', 'inicio']);
-        const fim = pick(r, ['hora_final', 'horafinal', 'hora_fim', 'fim']);
+        const atividade = pick(r, ['atividade', 'descricao_da_operacao', 'operacao', 'descricao_operacao', 'descricao_da_operacao_']);
+        const velRaw = pick(r, ['velocidade_media', 'velocidade', 'vel_media', 'velocidademedia', 'velocidade_media_kmh', 'velocidade_media_km_h', 'vel']);
+        const vel = parseNum(velRaw);
+        const ini = pick(r, ['hora_inicial', 'horainicial', 'hora_inicio', 'inicio', 'hora_inicial_']);
+        const fim = pick(r, ['hora_final', 'horafinal', 'hora_fim', 'fim', 'hora_final_']);
         const horas = calcHoras(ini, fim);
+        if (!diagDone) {
+          console.log('[DIAG] colunas detectadas:', Object.keys(r));
+          console.log('[DIAG] amostra → atividade:', atividade, '| velRaw:', velRaw, '→', vel, '| ini:', ini, '| fim:', fim, '| horas:', horas);
+          diagDone = true;
+        }
         out.push({
+          data: normDate(pick(r, ['data', 'dia', 'data_apontamento'])),
           atividade: normText(atividade),
           vel: isFinite(vel) ? vel : NaN,
           horas: isFinite(horas) ? Math.max(0, horas) : 0,
@@ -368,11 +391,29 @@
       return out;
     }
 
+    // min/max das datas de um conjunto de linhas
+    function dateRange(rows) {
+      let min = null, max = null;
+      for (const r of rows) {
+        if (!r.data) continue;
+        if (min === null || r.data < min) min = r.data;
+        if (max === null || r.data > max) max = r.data;
+      }
+      return { min, max };
+    }
+
     // ───────────────────────── render UI ─────────────────────────
     function renderFiles() {
       $('filesGrid').innerHTML = state.periods.map((p, i) => {
         const loaded = !!p.rows;
         const n = loaded ? p.rows.length : 0;
+        const dateBlock = loaded ? `
+            <div class="range-row" style="margin-top:2px">
+              <div><label style="font-size:10px;font-weight:800;color:#475467;text-transform:uppercase">Data início</label>
+                <input class="pdate" type="date" data-i="${i}" data-k="dStart" value="${p.dStart || ''}" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:6px;font-size:12px;outline:none" /></div>
+              <div><label style="font-size:10px;font-weight:800;color:#475467;text-transform:uppercase">Data fim</label>
+                <input class="pdate" type="date" data-i="${i}" data-k="dEnd" value="${p.dEnd || ''}" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:6px;font-size:12px;outline:none" /></div>
+            </div>` : '';
         return `
           <div class="file-card">
             <h4>📁 CSV ${i + 1}</h4>
@@ -381,6 +422,7 @@
               ${loaded ? `✓ ${escapeHtml(p.fileName || 'arquivo carregado')}` : 'Clique ou arraste o CSV aqui'}
               <input type="file" accept=".csv,text/csv" data-i="${i}" />
             </label>
+            ${dateBlock}
             ${loaded ? `<div class="file-stat">${fmtN(n)} linhas lidas</div><div class="file-clear" data-i="${i}">remover</div>` : `<div class="file-stat">nenhum arquivo</div>`}
           </div>`;
       }).join('');
@@ -388,6 +430,9 @@
       // listeners
       $('filesGrid').querySelectorAll('input.pname').forEach(el => {
         el.addEventListener('input', e => { state.periods[+e.target.dataset.i].name = e.target.value; });
+      });
+      $('filesGrid').querySelectorAll('input.pdate').forEach(el => {
+        el.addEventListener('change', e => { state.periods[+e.target.dataset.i][e.target.dataset.k] = e.target.value; });
       });
       $('filesGrid').querySelectorAll('input[type=file]').forEach(el => {
         el.addEventListener('change', e => {
@@ -418,8 +463,13 @@
       reader.onload = () => {
         try {
           const { data } = parseCSV(reader.result);
-          state.periods[i].rows = normalizeRows(data);
+          const rows = normalizeRows(data);
+          state.periods[i].rows = rows;
           state.periods[i].fileName = file.name;
+          // preenche o filtro de datas com o intervalo encontrado no CSV
+          const dr = dateRange(rows);
+          state.periods[i].dStart = dr.min || '';
+          state.periods[i].dEnd = dr.max || '';
           if (!state.periods[i].name || /^Período \d$/.test(state.periods[i].name)) {
             state.periods[i].name = file.name.replace(/\.csv$/i, '');
           }
@@ -495,36 +545,40 @@
       return -1;
     }
 
-    function calcPeriod(rows, op, ranges) {
+    function calcPeriod(rows, op, ranges, dStart, dEnd) {
       const buckets = {};
       for (const r of ranges) buckets[r.idx] = { horas: 0, count: 0, velSum: 0, equip: new Set(), frentes: new Set() };
-      let totalHoras = 0, totalCount = 0, totalVelW = 0, foraFaixa = 0, semVel = 0;
+      let totalHoras = 0, totalCount = 0, totalVelSum = 0, foraFaixa = 0, semVel = 0;
       const allEquip = new Set();
       for (const row of rows) {
         if (op && !row.atividade.includes(op)) continue;
+        if (dStart && row.data && row.data < dStart) continue;
+        if (dEnd && row.data && row.data > dEnd) continue;
         if (!isFinite(row.vel)) { semVel++; continue; }
         const idx = rangeOf(row.vel, ranges);
-        totalHoras += row.horas; totalCount++; totalVelW += row.vel * row.horas;
+        totalHoras += row.horas; totalCount++; totalVelSum += row.vel;
         if (row.equip) allEquip.add(row.equip);
         if (idx === -1) { foraFaixa++; continue; }
         const b = buckets[idx];
-        b.horas += row.horas; b.count++; b.velSum += row.vel * row.horas;
+        b.horas += row.horas; b.count++; b.velSum += row.vel;
         if (row.equip) b.equip.add(row.equip);
         if (row.frente) b.frentes.add(row.frente);
       }
+      // Se as horas não vieram (coluna de hora ausente), distribui por nº de registros
+      const hasHoras = totalHoras > 0;
       const perRange = ranges.map(r => {
         const b = buckets[r.idx];
         return {
           idx: r.idx, label: r.label, min: r.min, max: r.max,
           horas: b.horas, count: b.count,
-          pctHoras: totalHoras > 0 ? (b.horas / totalHoras) * 100 : 0,
-          velMedia: b.horas > 0 ? b.velSum / b.horas : 0,
+          pctHoras: hasHoras ? (b.horas / totalHoras) * 100 : (totalCount > 0 ? (b.count / totalCount) * 100 : 0),
+          velMedia: b.count > 0 ? b.velSum / b.count : 0,   // média simples (independe das horas)
           nEquip: b.equip.size, nFrentes: b.frentes.size,
         };
       });
       return {
-        perRange, totalHoras, totalCount, foraFaixa, semVel,
-        velMediaGeral: totalHoras > 0 ? totalVelW / totalHoras : 0,
+        perRange, totalHoras, totalCount, foraFaixa, semVel, hasHoras,
+        velMediaGeral: totalCount > 0 ? totalVelSum / totalCount : 0,
         nEquip: allEquip.size,
       };
     }
@@ -536,8 +590,8 @@
       const periods = [];
       state.periods.forEach((p, i) => {
         if (!p.rows) return;
-        const calc = calcPeriod(p.rows, op, ranges);
-        periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges });
+        const calc = calcPeriod(p.rows, op, ranges, p.dStart, p.dEnd);
+        periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges, dStart: p.dStart, dEnd: p.dEnd });
       });
       if (!periods.length) { setStatus('Importe ao menos um CSV.', 'warn'); return; }
       state.lastResult = { periods, ranges, op: $('opFilter').value };
@@ -571,17 +625,24 @@
             <td>${fmtN(r.nEquip)}</td>
             <td>${fmtV(r.velMedia)}</td>
           </tr>`).join('');
+        const pctLbl = c.hasHoras ? '% Horas' : '% Registros';
+        const dateChip = (p.dStart || p.dEnd)
+          ? `<span class="chip">${p.dStart ? fmtDateBr(p.dStart) : '…'} a ${p.dEnd ? fmtDateBr(p.dEnd) : '…'}</span>` : '';
+        const semHorasWarn = c.hasHoras ? '' : `<span class="chip" style="background:#fff3cd;color:#7a5b00">sem horas — distribuição por registros</span>`;
         return `
           <div class="period-block">
             <h3 class="period-title">${escapeHtml(p.name)}
+              ${dateChip}
               <span class="chip">${fmtH(c.totalHoras)} h totais</span>
+              <span class="chip">${fmtN(c.totalCount)} registros</span>
               <span class="chip">${fmtN(c.nEquip)} equipamentos</span>
               <span class="chip">vel. média ${fmtV(c.velMediaGeral)} km/h</span>
+              ${semHorasWarn}
             </h3>
             <div class="cards">${cards}</div>
             <div class="rtable-wrap">
               <table>
-                <thead><tr><th>Faixa</th><th>Horas</th><th>% Horas</th><th>Registros</th><th>Equip.</th><th>Vel. média</th></tr></thead>
+                <thead><tr><th>Faixa</th><th>Horas</th><th>${pctLbl}</th><th>Registros</th><th>Equip.</th><th>Vel. média</th></tr></thead>
                 <tbody>
                   ${tRows}
                   <tr class="total-row">
