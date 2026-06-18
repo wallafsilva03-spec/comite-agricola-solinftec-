@@ -196,17 +196,31 @@
     <!-- STEP 1: CSV import -->
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="step">1</span> Importar bases CSV (até 4 períodos)</h2>
+        <h2 class="panel-title"><span class="step">1</span> Importar bases CSV (até 4)</h2>
       </div>
       <div class="panel-body">
         <div id="filesGrid" class="files-grid"></div>
       </div>
     </section>
 
-    <!-- STEP 2: speed ranges -->
+    <!-- STEP 2: define periods -->
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="step">2</span> Faixas de velocidade (km/h)</h2>
+        <h2 class="panel-title"><span class="step">2</span> Montar períodos (escolha a base e filtre as datas)</h2>
+        <div class="actions"><button id="addPeriodBtn" class="btn" type="button">+ Adicionar período</button></div>
+      </div>
+      <div class="panel-body">
+        <div id="periodsGrid" class="files-grid"></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:10px">
+          Cada período pode usar qualquer uma das bases importadas. Você pode montar vários períodos a partir da mesma base, só mudando o intervalo de datas.
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: speed ranges -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">3</span> Faixas de velocidade (km/h)</h2>
         <div class="actions"><button id="resetRangesBtn" class="btn" type="button">Restaurar padrão</button></div>
       </div>
       <div class="panel-body">
@@ -222,7 +236,7 @@
     <!-- STEP 3: actions -->
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="step">3</span> Calcular e exportar</h2>
+        <h2 class="panel-title"><span class="step">4</span> Calcular e exportar</h2>
       </div>
       <div class="panel-body">
         <div id="statusBox" class="notice warn">Importe pelo menos um CSV para começar.</div>
@@ -243,11 +257,19 @@
     const PALETTE_PPT = ['0B7497', '1F9D6B', 'C98A00', 'B54708'];
 
     const state = {
+      // bases importadas (até 4 CSVs)
+      bases: [
+        { name: 'Base 1', rows: null, fileName: '', range: { min: null, max: null } },
+        { name: 'Base 2', rows: null, fileName: '', range: { min: null, max: null } },
+        { name: 'Base 3', rows: null, fileName: '', range: { min: null, max: null } },
+        { name: 'Base 4', rows: null, fileName: '', range: { min: null, max: null } },
+      ],
+      // períodos montados a partir das bases
       periods: [
-        { name: 'Período 1', rows: null, fileName: '', dStart: '', dEnd: '' },
-        { name: 'Período 2', rows: null, fileName: '', dStart: '', dEnd: '' },
-        { name: 'Período 3', rows: null, fileName: '', dStart: '', dEnd: '' },
-        { name: 'Período 4', rows: null, fileName: '', dStart: '', dEnd: '' },
+        { name: 'Período 1', baseIdx: 0, dStart: '', dEnd: '' },
+        { name: 'Período 2', baseIdx: 1, dStart: '', dEnd: '' },
+        { name: 'Período 3', baseIdx: 2, dStart: '', dEnd: '' },
+        { name: 'Período 4', baseIdx: 3, dStart: '', dEnd: '' },
       ],
       ranges: defaultRanges(),
       lastResult: null,
@@ -402,37 +424,26 @@
       return { min, max };
     }
 
-    // ───────────────────────── render UI ─────────────────────────
+    // ───────────────────────── render BASES ─────────────────────────
     function renderFiles() {
-      $('filesGrid').innerHTML = state.periods.map((p, i) => {
-        const loaded = !!p.rows;
-        const n = loaded ? p.rows.length : 0;
-        const dateBlock = loaded ? `
-            <div class="range-row" style="margin-top:2px">
-              <div><label style="font-size:10px;font-weight:800;color:#475467;text-transform:uppercase">Data início</label>
-                <input class="pdate" type="date" data-i="${i}" data-k="dStart" value="${p.dStart || ''}" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:6px;font-size:12px;outline:none" /></div>
-              <div><label style="font-size:10px;font-weight:800;color:#475467;text-transform:uppercase">Data fim</label>
-                <input class="pdate" type="date" data-i="${i}" data-k="dEnd" value="${p.dEnd || ''}" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:6px;font-size:12px;outline:none" /></div>
-            </div>` : '';
+      $('filesGrid').innerHTML = state.bases.map((b, i) => {
+        const loaded = !!b.rows;
+        const n = loaded ? b.rows.length : 0;
+        const rangeTxt = loaded && b.range.min ? `${fmtDateBr(b.range.min)} a ${fmtDateBr(b.range.max)}` : '';
         return `
           <div class="file-card">
-            <h4>📁 CSV ${i + 1}</h4>
-            <input class="pname" data-i="${i}" type="text" value="${escapeHtml(p.name)}" placeholder="Nome do período" />
+            <h4>📁 Base ${i + 1}</h4>
+            <input class="bname" data-i="${i}" type="text" value="${escapeHtml(b.name)}" placeholder="Nome da base" />
             <label class="dropzone ${loaded ? 'loaded' : ''}" data-i="${i}" id="dz${i}">
-              ${loaded ? `✓ ${escapeHtml(p.fileName || 'arquivo carregado')}` : 'Clique ou arraste o CSV aqui'}
+              ${loaded ? `✓ ${escapeHtml(b.fileName || 'arquivo carregado')}` : 'Clique ou arraste o CSV aqui'}
               <input type="file" accept=".csv,text/csv" data-i="${i}" />
             </label>
-            ${dateBlock}
-            ${loaded ? `<div class="file-stat">${fmtN(n)} linhas lidas</div><div class="file-clear" data-i="${i}">remover</div>` : `<div class="file-stat">nenhum arquivo</div>`}
+            ${loaded ? `<div class="file-stat">${fmtN(n)} linhas · ${rangeTxt}</div><div class="file-clear" data-i="${i}">remover</div>` : `<div class="file-stat">nenhum arquivo</div>`}
           </div>`;
       }).join('');
 
-      // listeners
-      $('filesGrid').querySelectorAll('input.pname').forEach(el => {
-        el.addEventListener('input', e => { state.periods[+e.target.dataset.i].name = e.target.value; });
-      });
-      $('filesGrid').querySelectorAll('input.pdate').forEach(el => {
-        el.addEventListener('change', e => { state.periods[+e.target.dataset.i][e.target.dataset.k] = e.target.value; });
+      $('filesGrid').querySelectorAll('input.bname').forEach(el => {
+        el.addEventListener('input', e => { state.bases[+e.target.dataset.i].name = e.target.value; renderPeriods(); });
       });
       $('filesGrid').querySelectorAll('input[type=file]').forEach(el => {
         el.addEventListener('change', e => {
@@ -442,12 +453,12 @@
       $('filesGrid').querySelectorAll('.file-clear').forEach(el => {
         el.addEventListener('click', e => {
           const i = +e.target.dataset.i;
-          state.periods[i].rows = null; state.periods[i].fileName = '';
-          renderFiles(); refreshHero(); updateButtons();
+          state.bases[i].rows = null; state.bases[i].fileName = ''; state.bases[i].range = { min: null, max: null };
+          renderFiles(); renderPeriods(); refreshHero(); updateButtons();
         });
       });
       // drag&drop
-      state.periods.forEach((_, i) => {
+      state.bases.forEach((_, i) => {
         const dz = $('dz' + i); if (!dz) return;
         ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
         ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
@@ -464,26 +475,106 @@
         try {
           const { data } = parseCSV(reader.result);
           const rows = normalizeRows(data);
-          state.periods[i].rows = rows;
-          state.periods[i].fileName = file.name;
-          // preenche o filtro de datas com o intervalo encontrado no CSV
-          const dr = dateRange(rows);
-          state.periods[i].dStart = dr.min || '';
-          state.periods[i].dEnd = dr.max || '';
-          if (!state.periods[i].name || /^Período \d$/.test(state.periods[i].name)) {
-            state.periods[i].name = file.name.replace(/\.csv$/i, '');
+          state.bases[i].rows = rows;
+          state.bases[i].fileName = file.name;
+          state.bases[i].range = dateRange(rows);
+          if (!state.bases[i].name || /^Base \d$/.test(state.bases[i].name)) {
+            state.bases[i].name = file.name.replace(/\.csv$/i, '');
           }
+          // auto-preenche datas dos períodos que usam esta base e ainda estão vazios
+          state.periods.forEach(p => {
+            if (p.baseIdx === i && !p.dStart && !p.dEnd) {
+              p.dStart = state.bases[i].range.min || '';
+              p.dEnd = state.bases[i].range.max || '';
+            }
+          });
           setProgress(100);
           setTimeout(() => setProgress(0), 400);
-          renderFiles(); refreshHero(); updateButtons();
-          setStatus(`CSV ${i + 1} carregado: ${fmtN(data.length)} linhas. Configure as faixas e clique em Gerar cálculo.`, 'ok');
+          renderFiles(); renderPeriods(); refreshHero(); updateButtons();
+          setStatus(`Base ${i + 1} carregada: ${fmtN(data.length)} linhas. Monte os períodos, configure as faixas e clique em Gerar cálculo.`, 'ok');
         } catch (err) {
           setProgress(0);
-          setStatus(`Erro ao ler o CSV ${i + 1}: ${err.message || err}`, 'warn');
+          setStatus(`Erro ao ler o CSV da Base ${i + 1}: ${err.message || err}`, 'warn');
         }
       };
-      reader.onerror = () => { setProgress(0); setStatus(`Falha ao ler o arquivo CSV ${i + 1}.`, 'warn'); };
+      reader.onerror = () => { setProgress(0); setStatus(`Falha ao ler o arquivo da Base ${i + 1}.`, 'warn'); };
       reader.readAsText(file, 'UTF-8');
+    }
+
+    // ───────────────────────── render PERÍODOS ─────────────────────────
+    function loadedBases() {
+      return state.bases.map((b, i) => ({ b, i })).filter(x => x.b.rows);
+    }
+
+    function renderPeriods() {
+      const avail = loadedBases();
+      if (!avail.length) {
+        $('periodsGrid').innerHTML = `<div style="grid-column:1/-1;color:var(--muted);font-size:13px">Importe pelo menos uma base acima para montar os períodos.</div>`;
+        return;
+      }
+      $('periodsGrid').innerHTML = state.periods.map((p, i) => {
+        const options = avail.map(x =>
+          `<option value="${x.i}" ${p.baseIdx === x.i ? 'selected' : ''}>${escapeHtml(x.b.name)}</option>`
+        ).join('');
+        const noneSel = !avail.some(x => x.i === p.baseIdx);
+        return `
+          <div class="file-card" style="border-top:4px solid ${PALETTE[i % 4]}">
+            <h4 style="justify-content:space-between;display:flex">
+              <span style="color:${PALETTE[i % 4]}">● ${escapeHtml(p.name)}</span>
+              <span class="period-del" data-i="${i}" style="font-size:11px;color:var(--red);cursor:pointer;text-decoration:underline">remover</span>
+            </h4>
+            <input class="pname" data-i="${i}" type="text" value="${escapeHtml(p.name)}" placeholder="Nome do período" />
+            <label style="font-size:10px;font-weight:800;color:#475467;text-transform:uppercase;margin-top:2px">Base de dados</label>
+            <select class="pbase" data-i="${i}" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:7px;font-size:13px;font-weight:700;outline:none;background:#fff">
+              ${noneSel ? '<option value="-1" selected>— escolher —</option>' : ''}
+              ${options}
+            </select>
+            <div class="range-row" style="margin-top:2px">
+              <div><label style="font-size:10px;font-weight:800;color:#475467;text-transform:uppercase">Data início</label>
+                <input class="pdate" type="date" data-i="${i}" data-k="dStart" value="${p.dStart || ''}" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:6px;font-size:12px;outline:none" /></div>
+              <div><label style="font-size:10px;font-weight:800;color:#475467;text-transform:uppercase">Data fim</label>
+                <input class="pdate" type="date" data-i="${i}" data-k="dEnd" value="${p.dEnd || ''}" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:6px;font-size:12px;outline:none" /></div>
+            </div>
+          </div>`;
+      }).join('');
+
+      $('periodsGrid').querySelectorAll('select.pbase').forEach(el => {
+        el.addEventListener('change', e => {
+          const i = +e.target.dataset.i, bi = +e.target.value;
+          state.periods[i].baseIdx = bi;
+          // ao trocar de base, repõe o intervalo de datas para o da base
+          const base = state.bases[bi];
+          if (base && base.range) { state.periods[i].dStart = base.range.min || ''; state.periods[i].dEnd = base.range.max || ''; }
+          renderPeriods(); refreshHero();
+        });
+      });
+      $('periodsGrid').querySelectorAll('input.pname').forEach(el => {
+        el.addEventListener('input', e => { state.periods[+e.target.dataset.i].name = e.target.value; });
+      });
+      $('periodsGrid').querySelectorAll('input.pdate').forEach(el => {
+        el.addEventListener('change', e => { state.periods[+e.target.dataset.i][e.target.dataset.k] = e.target.value; refreshHero(); });
+      });
+      $('periodsGrid').querySelectorAll('.period-del').forEach(el => {
+        el.addEventListener('click', e => {
+          const i = +e.target.dataset.i;
+          if (state.periods.length <= 1) { setStatus('É necessário ao menos um período.', 'warn'); return; }
+          state.periods.splice(i, 1);
+          renderPeriods(); refreshHero();
+        });
+      });
+    }
+
+    function addPeriod() {
+      if (state.periods.length >= 8) { setStatus('Máximo de 8 períodos.', 'warn'); return; }
+      const avail = loadedBases();
+      const bi = avail.length ? avail[0].i : 0;
+      const base = state.bases[bi];
+      state.periods.push({
+        name: `Período ${state.periods.length + 1}`, baseIdx: bi,
+        dStart: base && base.range ? (base.range.min || '') : '',
+        dEnd: base && base.range ? (base.range.max || '') : '',
+      });
+      renderPeriods();
     }
 
     function renderRanges() {
@@ -515,14 +606,20 @@
       let total = 0;
       const op = normText($('opFilter').value);
       for (const p of state.periods) {
-        if (!p.rows) continue;
-        for (const r of p.rows) if (!op || r.atividade.includes(op)) total++;
+        const base = state.bases[p.baseIdx];
+        if (!base || !base.rows) continue;
+        for (const r of base.rows) {
+          if (op && !r.atividade.includes(op)) continue;
+          if (p.dStart && r.data && r.data < p.dStart) continue;
+          if (p.dEnd && r.data && r.data > p.dEnd) continue;
+          total++;
+        }
       }
       $('heroNum').textContent = fmtN(total);
     }
 
     function updateButtons() {
-      const any = state.periods.some(p => p.rows);
+      const any = state.bases.some(b => b.rows);
       $('calcBtn').disabled = !any;
       $('pptBtn').disabled = !state.lastResult;
     }
@@ -589,11 +686,12 @@
       if (!ranges.length) { setStatus('Defina pelo menos uma faixa de velocidade válida (máx > mín).', 'warn'); return; }
       const periods = [];
       state.periods.forEach((p, i) => {
-        if (!p.rows) return;
-        const calc = calcPeriod(p.rows, op, ranges, p.dStart, p.dEnd);
+        const base = state.bases[p.baseIdx];
+        if (!base || !base.rows) return;
+        const calc = calcPeriod(base.rows, op, ranges, p.dStart, p.dEnd);
         periods.push({ name: p.name || `Período ${i + 1}`, calc, ranges, dStart: p.dStart, dEnd: p.dEnd });
       });
-      if (!periods.length) { setStatus('Importe ao menos um CSV.', 'warn'); return; }
+      if (!periods.length) { setStatus('Monte ao menos um período com uma base selecionada.', 'warn'); return; }
       state.lastResult = { periods, ranges, op: $('opFilter').value };
       renderResults(state.lastResult);
       updateButtons();
@@ -612,7 +710,7 @@
               <div class="s-lbl">${escapeHtml(r.label)}</div>
               <div class="s-range">${fmtV(r.min)} – ${fmtV(r.max)} km/h</div>
               <div class="s-big">${fmtPct(r.pctHoras)}</div>
-              <div class="s-sub">${fmtH(r.horas)} h · ${fmtN(r.count)} reg.<br>${fmtN(r.nEquip)} equip. · vel. méd. ${fmtV(r.velMedia)}</div>
+              <div class="s-sub">${fmtH(r.horas)} h · ${fmtN(r.count)} reg.<br>vel. méd. ${fmtV(r.velMedia)} km/h</div>
               <div class="s-bar"><span style="width:${w}%"></span></div>
             </div>`;
         }).join('');
@@ -622,7 +720,6 @@
             <td>${fmtH(r.horas)}</td>
             <td>${fmtPct(r.pctHoras)}</td>
             <td>${fmtN(r.count)}</td>
-            <td>${fmtN(r.nEquip)}</td>
             <td>${fmtV(r.velMedia)}</td>
           </tr>`).join('');
         const pctLbl = c.hasHoras ? '% Horas' : '% Registros';
@@ -635,19 +732,18 @@
               ${dateChip}
               <span class="chip">${fmtH(c.totalHoras)} h totais</span>
               <span class="chip">${fmtN(c.totalCount)} registros</span>
-              <span class="chip">${fmtN(c.nEquip)} equipamentos</span>
               <span class="chip">vel. média ${fmtV(c.velMediaGeral)} km/h</span>
               ${semHorasWarn}
             </h3>
             <div class="cards">${cards}</div>
             <div class="rtable-wrap">
               <table>
-                <thead><tr><th>Faixa</th><th>Horas</th><th>${pctLbl}</th><th>Registros</th><th>Equip.</th><th>Vel. média</th></tr></thead>
+                <thead><tr><th>Faixa</th><th>Horas</th><th>${pctLbl}</th><th>Registros</th><th>Vel. média</th></tr></thead>
                 <tbody>
                   ${tRows}
                   <tr class="total-row">
                     <td>TOTAL</td><td>${fmtH(c.totalHoras)}</td><td>100,0%</td>
-                    <td>${fmtN(c.totalCount)}</td><td>${fmtN(c.nEquip)}</td><td>${fmtV(c.velMediaGeral)}</td>
+                    <td>${fmtN(c.totalCount)}</td><td>${fmtV(c.velMediaGeral)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -697,7 +793,7 @@
           x, y: topY, w: colW, h: 0.7, fill: { color: '0B7497' }, line: { color: '0B7497' }, rectRadius: 0.06,
         });
         slide.addText(p.name, { x, y: topY + 0.04, w: colW, h: 0.34, align: 'center', fontSize: 13, bold: true, color: 'FFFFFF', fontFace: 'Arial' });
-        slide.addText(`${fmtH(c.totalHoras)} h · ${fmtN(c.nEquip)} equip · ${fmtV(c.velMediaGeral)} km/h`, {
+        slide.addText(`${fmtH(c.totalHoras)} h · ${fmtN(c.totalCount)} reg · ${fmtV(c.velMediaGeral)} km/h`, {
           x, y: topY + 0.36, w: colW, h: 0.3, align: 'center', fontSize: 8.5, color: 'D6EAF2', fontFace: 'Arial',
         });
 
@@ -756,10 +852,12 @@
     // ───────────────────────── init ─────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
       renderFiles();
+      renderPeriods();
       renderRanges();
       $('opFilter').addEventListener('input', refreshHero);
       $('calcBtn').addEventListener('click', generate);
       $('pptBtn').addEventListener('click', exportPptx);
+      $('addPeriodBtn').addEventListener('click', addPeriod);
       $('resetRangesBtn').addEventListener('click', () => { state.ranges = defaultRanges(); renderRanges(); });
       updateButtons();
     });
