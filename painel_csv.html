@@ -1225,8 +1225,9 @@
           const atividade = row.a || 'SEM APONTAMENTO';
           const atividadeNorm = atividade.replace(/\s+/g,' ').trim();
           const frente = row.f || 'SEM FRENTE';
-          const excluirManut = ['MANUTENCAO COMPUTADOR BORDO','MANUTENCAO PILOTO/GPS','MANUTENCAO PILOTO GPS','MANUT PREVENTIVA'];
-          if (cls === 'MANUTENCAO' && !excluirManut.includes(atividadeNorm)) {
+          const excluirManut = ['MANUTENCAO COMPUTADOR BORDO','MANUTENCAO PILOTO/GPS','MANUTENCAO PILOTO GPS'];
+          const isExcluido = excluirManut.includes(atividadeNorm) || atividadeNorm.includes('PREVENTIVA');
+          if (cls === 'MANUTENCAO' && !isExcluido) {
             offendersMaintenance[atividade] = (offendersMaintenance[atividade] || 0) + h;
             if (!offMaintByFront[atividade]) offMaintByFront[atividade] = Object.create(null);
             offMaintByFront[atividade][frente] = (offMaintByFront[atividade][frente] || 0) + 1;
