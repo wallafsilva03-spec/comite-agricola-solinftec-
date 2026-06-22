@@ -1180,7 +1180,20 @@
     }
 
     // ─── CALCULATION ──────────────────────────────────────────────────────────
+    const FRONTES_EXCLUIDAS_EXATAS = ['OFICINA CENTRAL'];
+    const FRONTES_EXCLUIDAS_REGEX = [
+      /COLHEITA\s+DE\s+MUDA\s*-\s*MEC\s*1/,
+      /PLANTIO\s+MECANIZADO\s*1/,
+      /PREPARO\s+DE\s+SOLO\s*2/,
+    ];
+    function isFrenteExcluida(frente) {
+      const fn = normText(frente);
+      if (FRONTES_EXCLUIDAS_EXATAS.includes(fn)) return true;
+      return FRONTES_EXCLUIDAS_REGEX.some(r => r.test(fn));
+    }
+
     function passesGlobalFilters(row, filters) {
+      if (isFrenteExcluida(row.f)) return false;
       if (!filters.front || filters.front.size === 0) return true;
       return filters.front.has(String(row.f));
     }
