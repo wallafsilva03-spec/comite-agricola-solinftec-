@@ -972,14 +972,7 @@
       if (codigo_equip.startsWith('9')) return null;
 
       const frente = String(f[cm.frente] || '').trim();
-      const frenteNorm = normText(frente);
-      if (frenteNorm === 'OFICINA CENTRAL') return null;
-      if (frenteNorm === 'APOIO BRIGADA DE INCENDIO') return null;
-      if (/CAMINHAO\s+PRANCHA/.test(frenteNorm)) return null;
-      if (/CAMINHOES\s+BATE\s+E\s+VOLTA/.test(frenteNorm)) return null;
-      if (/COLHEITA\s+DE\s+MUDA\s*-\s*MEC\s*1/.test(frenteNorm)) return null;
-      if (/PLANTIO\s+MECANIZADO\s*1/.test(frenteNorm)) return null;
-      if (/PREPARO\s+DE\s+SOLO\s*2/.test(frenteNorm)) return null;
+      if (isFrenteExcluida(frente)) return null;
 
       const data = normDate(f[cm.data]);
       if (!data) return null;
@@ -1183,10 +1176,15 @@
     }
 
     // ─── CALCULATION ──────────────────────────────────────────────────────────
-    const FRONTES_EXCLUIDAS_EXATAS = ['OFICINA CENTRAL', 'APOIO BRIGADA DE INCENDIO'];
+    const FRONTES_EXCLUIDAS_EXATAS = ['OFICINA CENTRAL'];
+    // Regex tolerantes a acento/codificação: ancoradas em palavras distintivas
+    // sem acento (PRANCHA, BATE...VOLTA, BRIGADA...INCENDIO) usando .* para
+    // absorver caracteres quebrados de "CAMINHÃO/CAMINHÕES/INCÊNDIO".
     const FRONTES_EXCLUIDAS_REGEX = [
-      /CAMINHAO\s+PRANCHA/,
-      /CAMINHOES\s+BATE\s+E\s+VOLTA/,
+      /CAMINH.*PRANCHA/,
+      /CAMINH.*BATE.*VOLTA/,
+      /BRIGADA.*INCENDIO/,
+      /APOIO\s+BRIGADA/,
       /COLHEITA\s+DE\s+MUDA\s*-\s*MEC\s*1/,
       /PLANTIO\s+MECANIZADO\s*1/,
       /PREPARO\s+DE\s+SOLO\s*2/,
