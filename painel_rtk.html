@@ -658,14 +658,23 @@ function normDate(s){
 function toNum(s){
   if(s==null||s==='') return 0;
   const str = String(s).trim();
+  if(!str) return 0;
+  // Time format HH:MM:SS or HH:MM or D.HH:MM:SS → convert to decimal hours
+  if(/^\d{1,4}:\d{1,2}(:\d{1,2})?$/.test(str)){
+    const parts = str.split(':').map(p=>parseInt(p,10)||0);
+    let h=0,m=0,sec=0;
+    if(parts.length===3){ [h,m,sec]=parts; }
+    else if(parts.length===2){ [h,m]=parts; }
+    return h + m/60 + sec/3600;
+  }
   // If has comma and no dot → BR decimal
-  if(str.includes(',') && !str.includes('.')) return parseFloat(str.replace(',','.'));
+  if(str.includes(',') && !str.includes('.')) return parseFloat(str.replace(',','.'))||0;
   // If has both, remove thousand sep
   if(str.includes(',') && str.includes('.')){
     // 1.234,56 → remove dots, replace comma
-    if(str.indexOf(',') > str.indexOf('.')) return parseFloat(str.replace(/\./g,'').replace(',','.'));
+    if(str.indexOf(',') > str.indexOf('.')) return parseFloat(str.replace(/\./g,'').replace(',','.'))||0;
     // 1,234.56 → remove commas
-    return parseFloat(str.replace(/,/g,''));
+    return parseFloat(str.replace(/,/g,''))||0;
   }
   return parseFloat(str)||0;
 }
@@ -681,6 +690,9 @@ function processOpRows(rows){
   // If operation column not found, skip the operation filter (show all rows)
   const hasOpCol = !!cm.operacao;
 
+  // Collect sample raw values for the hours columns (for diagnostics)
+  const sampleRtk = [], sampleOp = [];
+
   const out = [];
   for(const row of rows){
     const operacao = cm.operacao ? String(row[cm.operacao]||'') : '';
@@ -690,9 +702,14 @@ function processOpRows(rows){
 
     const data = normDate(cm.data ? String(row[cm.data]||'') : '');
 
-    const hrsRtk = toNum(cm.hrsRtk ? row[cm.hrsRtk] : 0);
-    const hrsOp  = toNum(cm.hrsOp  ? row[cm.hrsOp]  : 0);
+    const rawRtk = cm.hrsRtk ? row[cm.hrsRtk] : '';
+    const rawOp  = cm.hrsOp  ? row[cm.hrsOp]  : '';
+    const hrsRtk = toNum(rawRtk);
+    const hrsOp  = toNum(rawOp);
     const rtkCapped = Math.min(hrsRtk, hrsOp);
+
+    if(sampleRtk.length<5 && String(rawRtk).trim()) sampleRtk.push(String(rawRtk).trim());
+    if(sampleOp.length<5 && String(rawOp).trim())  sampleOp.push(String(rawOp).trim());
 
     out.push({
       frente:   cm.frente   ? String(row[cm.frente]  ||'SEM FRENTE') : 'SEM FRENTE',
@@ -704,7 +721,7 @@ function processOpRows(rows){
       hrsOp,
     });
   }
-  return {rows: out, cm, totalRaw: rows.length, rawHeaders: headers};
+  return {rows: out, cm, totalRaw: rows.length, rawHeaders: headers, sampleRtk, sampleOp};
 }
 
 /* ============================================================
@@ -1402,7 +1419,7 @@ function setStatus(msg, type=''){
 function setRecords(n){ document.getElementById('sb-records').textContent = n!=null?`${n} registros filtrados`:''; }
 function setTime(ms){ document.getElementById('sb-time').textContent = ms!=null?`Processado em ${ms}ms`:''; }
 
-function showDiagnostics(cm, totalRaw, totalFiltered, rawHeaders){
+function showDiagnostics(cm, totalRaw, totalFiltered, rawHeaders, sampleRtk, sampleOp){
   const panel = document.getElementById('diag-panel');
   const colsEl = document.getElementById('diag-cols');
   const fields = {
@@ -1418,6 +1435,14 @@ function showDiagnostics(cm, totalRaw, totalFiltered, rawHeaders){
     }
   }
   html += `<span style="color:var(--muted);margin-left:8px">${totalRaw} linhas → ${totalFiltered} registros</span>`;
+
+  // Sample raw values of the hours columns — confirms the number/time format
+  if((sampleRtk&&sampleRtk.length)||(sampleOp&&sampleOp.length)){
+    html += `<div style="width:100%;margin-top:6px;font-size:11px;color:var(--muted)">`;
+    if(sampleRtk&&sampleRtk.length) html += `Amostra Hrs RTK: <span style="color:var(--text)">${sampleRtk.map(escHtml).join(' · ')}</span><br>`;
+    if(sampleOp&&sampleOp.length)  html += `Amostra Hrs Op: <span style="color:var(--text)">${sampleOp.map(escHtml).join(' · ')}</span>`;
+    html += `</div>`;
+  }
 
   // Always show raw headers so user can see what's in the file
   html += `<details style="width:100%;margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">▶ Ver todos os cabeçalhos detectados no arquivo (${rawHeaders.length})</summary>`;
@@ -1614,7 +1639,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         STATE.rawOp = result.rows;
         STATE.fileOpName=file.name;
         populateFilters(STATE.rawOp);
-        showDiagnostics(result.cm, result.totalRaw, result.rows.length, result.rawHeaders);
+        showDiagnostics(result.cm, result.totalRaw, result.rows.length, result.rawHeaders, result.sampleRtk, result.sampleOp);
         setStatus(`Operacional: ${result.rows.length} registros válidos (de ${result.totalRaw} linhas)`,'green');
       }
       showNotices();
