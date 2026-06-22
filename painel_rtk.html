@@ -406,6 +406,10 @@ tr:last-child td{border-bottom:none}
       <strong>Colunas detectadas na base operacional:</strong>
       <div id="diag-cols" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px"></div>
     </div>
+    <div id="diag-proj" class="notice blue" style="display:none;flex-direction:column;align-items:flex-start;gap:4px">
+      <strong>Base de projetos:</strong>
+      <div id="diag-proj-cols" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px"></div>
+    </div>
 
     <!-- TAB: GERAL -->
     <div class="tab-panel active" id="tab-geral">
@@ -522,6 +526,8 @@ const STATE = {
   fileOpName: '',
   fileProjName: '',
   projLoaded: false,
+  projResult: null,   // {map, cm, comCount, semCount, ...}
+  lastProjMatch: null, // stats from last applyFilters cross-reference
 };
 
 /* ============================================================
@@ -724,26 +730,42 @@ function processOpRows(rows){
   return {rows: out, cm, totalRaw: rows.length, rawHeaders: headers, sampleRtk, sampleOp};
 }
 
+/* Chave normalizada de fazenda — extrai o código numérico (sem zeros à
+   esquerda) quando existir, senão usa o texto normalizado. Permite casar
+   "0101", "101", "101 - FAZENDA X" entre bases diferentes. */
+function fazKey(s){
+  if(s==null) return '';
+  const t = normText(s);
+  const m = t.match(/\d+/);
+  if(m) return String(parseInt(m[0],10));
+  return t;
+}
+
 /* ============================================================
    PROCESS PROJECT TXT
    ============================================================ */
 function processProjRows(rows){
-  if(!rows.length) return new Map();
+  const result = {map:new Map(), cm:{}, headers:[], totalRaw:rows.length, comCount:0, semCount:0, sampleKeys:[]};
+  if(!rows.length) return result;
   const headers = Object.keys(rows[0]);
   const cm = buildColMap(headers);
+  result.cm = cm; result.headers = headers;
 
-  const map = new Map(); // fazenda → 'COM PROJETO' | 'SEM PROJETO'
+  const map = result.map; // fazendaKey → 'COM PROJETO' | 'SEM PROJETO'
   for(const row of rows){
-    const faz = cm.codFazenda ? normText(row[cm.codFazenda]||'') : '';
-    const proj = cm.projeto   ? normText(row[cm.projeto]   ||'') : '';
-    if(!faz) continue;
+    const fazRaw = cm.codFazenda ? String(row[cm.codFazenda]||'') : '';
+    const key = fazKey(fazRaw);
+    const proj = cm.projeto ? normText(row[cm.projeto]||'') : '';
+    if(!key) continue;
+    // "com projeto" / non-empty meaningful = COM; "sem"/vazio = SEM
     let val = 'SEM PROJETO';
     if(proj.includes('com')) val = 'COM PROJETO';
     if(proj.includes('sem')) val = 'SEM PROJETO';
-    if(proj.includes('com projeto')) val = 'COM PROJETO';
-    map.set(faz, val);
+    map.set(key, val);
+    if(result.sampleKeys.length<8) result.sampleKeys.push(fazRaw.trim()+' → '+key);
   }
-  return map;
+  for(const v of map.values()){ if(v==='COM PROJETO') result.comCount++; else result.semCount++; }
+  return result;
 }
 
 /* ============================================================
@@ -790,32 +812,39 @@ function applyFilters(rows){
   const projFilter   = document.getElementById('filter-projeto').value;
   const equipFilter  = normText(document.getElementById('filter-equip').value);
 
-  // Project map
-  const projMap = STATE.projLoaded ? processProjRows(STATE.rawProj) : null;
+  // Project map (computed once at load, stored in STATE.projResult)
+  const projMap = (STATE.projLoaded && STATE.projResult) ? STATE.projResult.map : null;
 
-  return rows.filter(r=>{
+  // Track cross-reference stats for diagnostics
+  const stats = {comProjeto:0, semProjeto:0, semCorresp:0};
+
+  const out = rows.filter(r=>{
     // Frente: filter only when not all are selected
     if(!allSelected && !frenteFilter.includes(r.frente)) return false;
     // Fazenda
     if(fazFilter && normText(r.fazenda)!==normText(fazFilter)) return false;
     // Project filter
     if(projMap){
-      const fazNorm = normText(r.fazenda);
-      const p = projMap.get(fazNorm);
+      const p = projMap.get(fazKey(r.fazenda));
+      if(p === 'COM PROJETO') stats.comProjeto++;
+      else if(p === 'SEM PROJETO') stats.semProjeto++;
+      else stats.semCorresp++;
       // Only include COM PROJETO by default when proj loaded
       if(!projFilter){
         if(p !== 'COM PROJETO') return false;
       } else {
-        if(projFilter && p !== projFilter) return false;
+        if(p !== projFilter) return false;
       }
     } else {
-      // projFilter requested but no file
-      if(projFilter) { /* can't filter, show all */ }
+      // projFilter requested but no file → cannot filter, show all
     }
     // Equip search
     if(equipFilter && !normText(r.equip).includes(equipFilter)) return false;
     return true;
   });
+
+  STATE.lastProjMatch = projMap ? stats : null;
+  return out;
 }
 
 /* ============================================================
@@ -1404,6 +1433,15 @@ function showNotices(){
   if(!STATE.projLoaded){
     msgs.push({cls:'yellow',txt:'Base de Projetos não carregada — processando todas as fazendas sem filtro de "COM PROJETO".'});
   }
+  // Cross-reference outcome after a calculation
+  const pm = STATE.lastProjMatch;
+  if(pm){
+    if(pm.comProjeto===0){
+      msgs.push({cls:'red',txt:`Atenção: nenhuma linha casou com fazenda "COM PROJETO" (${pm.semProjeto} SEM PROJETO, ${pm.semCorresp} sem correspondência na base de projetos). Verifique se o código da fazenda bate entre os dois arquivos — veja a amostra no painel "Base de projetos".`});
+    } else if(pm.semCorresp>0){
+      msgs.push({cls:'yellow',txt:`${pm.comProjeto} linhas COM PROJETO mantidas. ${pm.semCorresp} linhas tinham fazenda sem correspondência na base de projetos e foram descartadas.`});
+    }
+  }
   n.innerHTML = msgs.map(m=>`<div class="notice ${m.cls}"><span>${m.txt}</span></div>`).join('');
 }
 
@@ -1454,6 +1492,22 @@ function showDiagnostics(cm, totalRaw, totalFiltered, rawHeaders, sampleRtk, sam
   html += `</div></details>`;
 
   colsEl.innerHTML = html;
+  panel.style.display = 'flex';
+}
+
+function showProjDiagnostics(pr){
+  const panel = document.getElementById('diag-proj');
+  const el = document.getElementById('diag-proj-cols');
+  if(!pr || !panel || !el) return;
+  const cm = pr.cm||{};
+  let html = '';
+  html += cm.codFazenda ? `<span class="ok" title="Coluna: &quot;${escHtml(cm.codFazenda)}&quot;">✓ Cód. Fazenda</span>` : `<span class="miss">✗ Cód. Fazenda</span>`;
+  html += cm.projeto    ? `<span class="ok" title="Coluna: &quot;${escHtml(cm.projeto)}&quot;">✓ Projeto</span>`       : `<span class="miss">✗ Projeto</span>`;
+  html += `<span style="color:var(--muted);margin-left:8px">${pr.comCount} COM PROJETO · ${pr.semCount} SEM · ${pr.totalRaw} linhas</span>`;
+  if(pr.sampleKeys && pr.sampleKeys.length){
+    html += `<div style="width:100%;margin-top:6px;font-size:11px;color:var(--muted)">Amostra fazenda → chave: <span style="color:var(--text)">${pr.sampleKeys.map(escHtml).join(' · ')}</span></div>`;
+  }
+  el.innerHTML = html;
   panel.style.display = 'flex';
 }
 
@@ -1561,6 +1615,7 @@ function clearAll(){
   STATE.rawOp=[];STATE.rawProj=[];STATE.filtered=[];
   STATE.aggFrente=[];STATE.aggEquip=[];STATE.aggPeriod=[];
   STATE.projLoaded=false;STATE.fileOpName='';STATE.fileProjName='';
+  STATE.projResult=null;STATE.lastProjMatch=null;
   document.getElementById('dz-op-name').textContent='';
   document.getElementById('dz-proj-name').textContent='';
   document.getElementById('file-op').value='';
@@ -1576,6 +1631,7 @@ function clearAll(){
   document.getElementById('filter-frente').innerHTML='';
   document.getElementById('filter-fazenda').innerHTML='<option value="">Todas</option>';
   document.getElementById('diag-panel').style.display='none';
+  document.getElementById('diag-proj').style.display='none';
   document.getElementById('notices').innerHTML='';
   Object.keys(STATE.charts).forEach(id=>{STATE.charts[id].destroy();delete STATE.charts[id];});
   setStatus('Dados limpos','');setRecords(null);setTime(null);
@@ -1633,7 +1689,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
         STATE.rawProj=rows;
         STATE.projLoaded=rows.length>0;
         STATE.fileProjName=file.name;
-        setStatus(`Projetos carregados: ${rows.length} linhas`,'green');
+        STATE.projResult = processProjRows(rows);
+        showProjDiagnostics(STATE.projResult);
+        setStatus(`Projetos: ${STATE.projResult.comCount} fazendas COM PROJETO / ${STATE.projResult.semCount} SEM (de ${rows.length} linhas)`,'green');
       } else {
         const result = processOpRows(rows);
         STATE.rawOp = result.rows;
