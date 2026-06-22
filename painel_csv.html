@@ -975,6 +975,7 @@
       const frenteNorm = normText(frente);
       if (frenteNorm === 'OFICINA CENTRAL') return null;
       if (/COLHEITA\s+DE\s+MUDA\s*-\s*MEC\s*1/.test(frenteNorm)) return null;
+      if (/PLANTIO\s+MECANIZADO\s*1/.test(frenteNorm)) return null;
 
       const data = normDate(f[cm.data]);
       if (!data) return null;
