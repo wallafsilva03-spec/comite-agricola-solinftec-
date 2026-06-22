@@ -643,10 +643,14 @@
     <!-- CSV IMPORT -->
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-title">Importar bases CSV (até 4)</h2>
+        <h2 class="panel-title">Importar bases CSV</h2>
       </div>
       <div class="panel-body">
-        <div id="filesGrid" class="files-grid"></div>
+        <label class="dropzone" id="dzMain" style="display:block;padding:20px;font-size:14px">
+          Clique ou arraste os CSVs aqui — múltiplos arquivos aceitos
+          <input type="file" id="mainFileInput" accept=".csv,text/csv" multiple style="display:none" />
+        </label>
+        <div id="loadedFilesList" style="margin-top:10px"></div>
       </div>
     </section>
 
@@ -868,12 +872,7 @@
   <script>
     // ─── STATE ────────────────────────────────────────────────────────────────
     const state = {
-      bases: [
-        { name: 'Base 1', rows: null, fileName: '' },
-        { name: 'Base 2', rows: null, fileName: '' },
-        { name: 'Base 3', rows: null, fileName: '' },
-        { name: 'Base 4', rows: null, fileName: '' },
-      ],
+      bases: [],       // array dinâmico de { fileName, rows }
       rows: [],        // concatenação de todas as bases carregadas
       lastResult: null,
     };
@@ -996,7 +995,7 @@
       };
     }
 
-    function loadBase(i, file) {
+    function loadFile(file) {
       const reader = new FileReader();
       reader.onload = () => {
         try {
@@ -1006,11 +1005,11 @@
           if (sampleRaw) {
             const rawDate = sampleRaw[cm.data];
             const normD   = normDate(rawDate);
-            console.log(`[CSV Base ${i+1}] Cabeçalho detectado:`, parsed.header);
-            console.log(`[CSV Base ${i+1}] Mapa de colunas: data=${cm.data}, hora_ini=${cm.hora_inicial}, hora_fim=${cm.hora_final}, atividade=${cm.atividade}, classificacao=${cm.classificacao}`);
-            console.log(`[CSV Base ${i+1}] Amostra data bruta: "${rawDate}" → normDate: "${normD}"`);
+            console.log(`[CSV ${file.name}] Cabeçalho detectado:`, parsed.header);
+            console.log(`[CSV ${file.name}] Mapa de colunas: data=${cm.data}, hora_ini=${cm.hora_inicial}, hora_fim=${cm.hora_final}`);
+            console.log(`[CSV ${file.name}] Amostra data bruta: "${rawDate}" → normDate: "${normD}"`);
             if (!normD) {
-              setStatus(`⚠️ Base ${i+1}: data bruta "${rawDate}" não reconhecida. Formatos aceitos: DD/MM/AAAA ou AAAA-MM-DD. Verifique a coluna de data no seu CSV.`, true);
+              setStatus(`⚠️ ${file.name}: data "${rawDate}" não reconhecida. Formatos aceitos: DD/MM/AAAA ou AAAA-MM-DD.`, true);
             }
           }
           const normalized = [];
@@ -1018,21 +1017,17 @@
             const r = normalizeRow(f, cm);
             if (r) normalized.push(r);
           }
-          state.bases[i].rows = normalized;
-          state.bases[i].fileName = file.name;
-          if (!state.bases[i].name || /^Base \d$/.test(state.bases[i].name)) {
-            state.bases[i].name = file.name.replace(/\.csv$/i, '');
-          }
+          state.bases.push({ fileName: file.name, rows: normalized });
           rebuildRows();
           renderFiles();
-          setStatus(`Base ${i + 1} carregada: ${fmtN(normalized.length)} registros válidos. Configure os períodos e clique em Calcular.`, false);
+          setStatus(`${file.name} carregado: ${fmtN(normalized.length)} registros válidos. Total geral: ${fmtN(state.rows.length)} registros. Configure os períodos e clique em Calcular.`, false);
           maybeAutoCalc();
         } catch (err) {
-          console.error('loadBase error:', err);
-          setStatus(`Erro ao ler o CSV da Base ${i + 1}: ${err.message || err}`, true);
+          console.error('loadFile error:', err);
+          setStatus(`Erro ao ler ${file.name}: ${err.message || err}`, true);
         }
       };
-      reader.onerror = () => setStatus(`Falha ao ler o arquivo da Base ${i + 1}.`, true);
+      reader.onerror = () => setStatus(`Falha ao ler o arquivo ${file.name}.`, true);
       reader.readAsText(file, 'UTF-8');
     }
 
@@ -1050,46 +1045,28 @@
       $('heroNum').textContent = fmtN(state.rows.length);
     }
 
-    // ─── RENDER FILES GRID ────────────────────────────────────────────────────
+    // ─── RENDER FILES LIST ────────────────────────────────────────────────────
     function renderFiles() {
-      $('filesGrid').innerHTML = state.bases.map((b, i) => {
-        const loaded = !!b.rows;
-        const n = loaded ? b.rows.length : 0;
-        return `
-          <div class="file-card">
-            <h4>Base ${i + 1}</h4>
-            <input class="bname" data-i="${i}" type="text" value="${escapeHtml(b.name)}" placeholder="Nome da base" />
-            <label class="dropzone ${loaded ? 'loaded' : ''}" data-i="${i}" id="dz${i}">
-              ${loaded ? `&#10003; ${escapeHtml(b.fileName || 'arquivo carregado')}` : 'Clique ou arraste o CSV aqui'}
-              <input type="file" accept=".csv,text/csv" data-i="${i}" />
-            </label>
-            ${loaded
-              ? `<div class="file-stat">${fmtN(n)} registros válidos</div><div class="file-clear" data-i="${i}">remover</div>`
-              : `<div class="file-stat">nenhum arquivo</div>`}
-          </div>`;
-      }).join('');
+      const list = $('loadedFilesList');
+      if (!state.bases.length) {
+        list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:4px 0">Nenhum arquivo carregado.</div>';
+        return;
+      }
+      list.innerHTML = state.bases.map((b, i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border:1px solid var(--line);border-radius:12px;background:#f9fbfd;margin-bottom:6px">
+          <span style="font-size:18px">&#10003;</span>
+          <span style="font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.fileName)}</span>
+          <span style="font-size:12px;color:var(--muted);white-space:nowrap">${fmtN(b.rows.length)} registros</span>
+          <span class="file-clear" data-i="${i}" style="font-size:12px;color:var(--red);cursor:pointer;text-decoration:underline;white-space:nowrap">remover</span>
+        </div>`).join('');
 
-      $('filesGrid').querySelectorAll('input.bname').forEach(el => {
-        el.addEventListener('input', e => { state.bases[+e.target.dataset.i].name = e.target.value; });
-      });
-      $('filesGrid').querySelectorAll('input[type=file]').forEach(el => {
-        el.addEventListener('change', e => {
-          const f = e.target.files[0]; if (f) loadBase(+e.target.dataset.i, f);
-        });
-      });
-      $('filesGrid').querySelectorAll('.file-clear').forEach(el => {
+      list.querySelectorAll('.file-clear').forEach(el => {
         el.addEventListener('click', e => {
           const i = +e.target.dataset.i;
-          state.bases[i].rows = null; state.bases[i].fileName = '';
-          rebuildRows(); renderFiles();
+          state.bases.splice(i, 1);
+          rebuildRows();
+          renderFiles();
         });
-      });
-      // drag & drop
-      state.bases.forEach((_, i) => {
-        const dz = $('dz' + i); if (!dz) return;
-        ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
-        ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
-        dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadBase(i, f); });
       });
     }
 
@@ -1979,6 +1956,18 @@
     // ─── INIT ─────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
       renderFiles();
+
+      // Dropzone única — múltiplos arquivos
+      const dz = $('dzMain');
+      const fi = $('mainFileInput');
+      dz.addEventListener('click', () => fi.click());
+      fi.addEventListener('change', e => {
+        for (const f of e.target.files) loadFile(f);
+        fi.value = '';
+      });
+      ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+      ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+      dz.addEventListener('drop', e => { for (const f of e.dataTransfer.files) loadFile(f); });
 
       if ($('frenteFilterInput')) $('frenteFilterInput').addEventListener('input', () => updateFilterSummary());
       $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
