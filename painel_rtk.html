@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel RTK — Piloto Automático Agrícola</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 /* ===== CSS VARIABLES ===== */
 :root {
@@ -271,6 +272,33 @@ tr:last-child td{border-bottom:none}
 
 /* Tooltip on hover cells */
 [title]{cursor:help}
+
+/* ===== FRENTE CHIPS ===== */
+.chips-container{
+  display:flex;flex-wrap:wrap;gap:5px;
+  max-height:160px;overflow-y:auto;
+  padding:4px 0;
+}
+.chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:20px;border:1px solid var(--border);
+  background:var(--bg3);color:var(--muted);font-size:11px;
+  cursor:pointer;transition:all .15s;user-select:none;
+  white-space:nowrap;
+}
+.chip:hover{border-color:var(--primary);color:var(--text)}
+.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.chip-all{font-weight:600}
+.chips-toolbar{display:flex;gap:5px;margin-bottom:4px}
+.chips-toolbar button{font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer}
+.chips-toolbar button:hover{background:var(--border);color:var(--text)}
+
+/* ===== DIAGNOSTICS ===== */
+#diag-panel{font-size:11px;margin-bottom:8px;display:none}
+#diag-panel table{font-size:11px;width:100%}
+#diag-panel td{padding:2px 4px;border-bottom:none;white-space:normal}
+#diag-panel .ok{color:var(--green)}
+#diag-panel .miss{color:var(--red)}
 </style>
 </head>
 <body>
@@ -306,10 +334,10 @@ tr:last-child td{border-bottom:none}
           <div class="dropzone-label">Base Operacional<br><small>TXT / CSV</small></div>
           <div class="dropzone-name" id="dz-op-name"></div>
         </div>
-        <div class="dropzone" id="dz-proj" title="Clique ou arraste o arquivo TXT de projetos">
-          <input type="file" id="file-proj" accept=".txt,.csv,.tsv">
+        <div class="dropzone" id="dz-proj" title="Clique ou arraste o arquivo de projetos">
+          <input type="file" id="file-proj" accept=".txt,.csv,.tsv,.xlsx,.xls">
           <div class="dropzone-icon">🗺️</div>
-          <div class="dropzone-label">Base Projetos<br><small>TXT / CSV (opcional)</small></div>
+          <div class="dropzone-label">Base Projetos<br><small>TXT / CSV / XLSX (opcional)</small></div>
           <div class="dropzone-name" id="dz-proj-name"></div>
         </div>
       </div>
@@ -332,8 +360,12 @@ tr:last-child td{border-bottom:none}
       <div class="sidebar-section-title sidebar-label">Filtros</div>
       <div class="sidebar-section-body">
         <div class="filter-row">
-          <label class="filter-label">Frente(s)</label>
-          <select class="filter-select" id="filter-frente" multiple></select>
+          <label class="filter-label">Frente(s) — clique para incluir/excluir</label>
+          <div class="chips-toolbar">
+            <button onclick="selectAllFrentes()">Todas</button>
+            <button onclick="clearAllFrentes()">Nenhuma</button>
+          </div>
+          <div class="chips-container" id="filter-frente"></div>
         </div>
         <div class="filter-row">
           <label class="filter-label">Fazenda</label>
@@ -370,6 +402,10 @@ tr:last-child td{border-bottom:none}
 
   <div id="content">
     <div id="notices"></div>
+    <div id="diag-panel" class="notice blue" style="display:none;flex-direction:column;align-items:flex-start;gap:4px">
+      <strong>Colunas detectadas na base operacional:</strong>
+      <div id="diag-cols" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px"></div>
+    </div>
 
     <!-- TAB: GERAL -->
     <div class="tab-panel active" id="tab-geral">
@@ -557,16 +593,30 @@ function splitLine(line, delim){
    COLUMN DETECTION — buildColMap
    ============================================================ */
 const COL_ALIASES = {
-  frente:      ['frente','grupo de equipamento','grupo equipamento','grupo'],
-  equip:       ['equipamento','descricao do equipamento','cod equipamento','maquina','codigo equipamento','equip'],
-  fazenda:     ['fazenda','cod fazenda','cod.fazenda','codigo fazenda','propriedade'],
-  data:        ['data','data operacao','data operacional','dt operacao'],
-  operacao:    ['operacao','atividade','descricao da operacao','descricao operacao','tipo operacao'],
-  hrsRtk:      ['hrs rtk ligado','horas rtk ligado','rtk ligado','hrs rtk','horas rtk','rtk hrs','rtk horas'],
-  hrsOp:       ['horas operacionais','hrs operacionais','hrs op','horas op','duracao','duração','horas trabalhadas','hrs trabalhadas','horas'],
+  frente:      ['frente','grupo de equipamento','grupo equipamento','grupo','frente operacional','turma','equipe'],
+  equip:       ['equipamento','descricao do equipamento','cod equipamento','maquina','codigo equipamento','equip',
+                 'descricao equipamento','nome equipamento','patrimonio','placa','descricao da maquina','maquina agricola'],
+  fazenda:     ['fazenda','cod fazenda','cod.fazenda','codigo fazenda','propriedade','nome fazenda','local','talhao fazenda',
+                 'unidade','nome da fazenda'],
+  data:        ['data','data operacao','data operacional','dt operacao','data registro','dt registro','competencia'],
+  operacao:    ['operacao','atividade','descricao da operacao','descricao operacao','tipo operacao',
+                 'tipo de operacao','nome operacao','nome da operacao','atividade agricola','tipo atividade',
+                 'descricao atividade','operacao agricola'],
+  hrsRtk:      ['hrs rtk ligado','horas rtk ligado','rtk ligado','hrs rtk','horas rtk','rtk hrs','rtk horas',
+                 'piloto automatico','piloto auto','hrs piloto automatico','horas piloto automatico',
+                 'piloto ativo','hrs piloto ativo','horas piloto ativo','rtk ativo',
+                 'auto piloto','autopiloto','hrs autopiloto','horas autopiloto',
+                 'tempo rtk','tempo piloto','piloto hrs','hrs auto','horas auto',
+                 'rtk','gps hrs','hrs gps','horas gps'],
+  hrsOp:       ['horas operacionais','hrs operacionais','hrs op','horas op','duracao','duracao operacao',
+                 'horas trabalhadas','hrs trabalhadas','horas','tempo operacional','hrs total','horas total',
+                 'total horas','total hrs','tempo trabalhado','hrs efetivas','horas efetivas',
+                 'operacional','hrs produtivas','horas produtivas','horas realizadas','hrs realizadas'],
   // project file
-  codFazenda:  ['cod.fazenda','cod fazenda','codigo fazenda','fazenda'],
-  projeto:     ['projeto linhas','projeto','linhas'],
+  codFazenda:  ['cod.fazenda','cod fazenda','codigo fazenda','fazenda','cod propriedade','codigo propriedade',
+                 'fazenda codigo','nome fazenda','propriedade'],
+  projeto:     ['projeto linhas','projeto','linhas','status projeto','com projeto','tipo projeto',
+                 'status','situacao','situacao projeto'],
 };
 
 function buildColMap(headers){
@@ -624,35 +674,37 @@ function toNum(s){
    PROCESS OPERATIONAL TXT
    ============================================================ */
 function processOpRows(rows){
-  if(!rows.length) return [];
+  if(!rows.length) return {rows:[], cm:{}};
   const headers = Object.keys(rows[0]);
   const cm = buildColMap(headers);
 
+  // If operation column not found, skip the operation filter (show all rows)
+  const hasOpCol = !!cm.operacao;
+
   const out = [];
   for(const row of rows){
-    const operacao = cm.operacao ? (row[cm.operacao]||'') : '';
+    const operacao = cm.operacao ? String(row[cm.operacao]||'') : '';
     const normOp = normText(operacao);
-    // Filter: only CORTE DE CANA or CARREGAMENTO
-    if(!normOp.includes('corte') && !normOp.includes('carregamento')) continue;
+    // Filter by operation only when the column is detected
+    if(hasOpCol && !normOp.includes('corte') && !normOp.includes('carregamento')) continue;
 
-    const data = normDate(cm.data ? row[cm.data] : '');
+    const data = normDate(cm.data ? String(row[cm.data]||'') : '');
 
     const hrsRtk = toNum(cm.hrsRtk ? row[cm.hrsRtk] : 0);
-    let hrsOp   = toNum(cm.hrsOp  ? row[cm.hrsOp]  : 0);
-    // Cap hrsRtk at hrsOp
+    const hrsOp  = toNum(cm.hrsOp  ? row[cm.hrsOp]  : 0);
     const rtkCapped = Math.min(hrsRtk, hrsOp);
 
     out.push({
-      frente:   cm.frente   ? (row[cm.frente]||'SEM FRENTE') : 'SEM FRENTE',
-      equip:    cm.equip    ? (row[cm.equip] ||'?') : '?',
-      fazenda:  cm.fazenda  ? (row[cm.fazenda]||'?') : '?',
+      frente:   cm.frente   ? String(row[cm.frente]  ||'SEM FRENTE') : 'SEM FRENTE',
+      equip:    cm.equip    ? String(row[cm.equip]   ||'?') : '?',
+      fazenda:  cm.fazenda  ? String(row[cm.fazenda] ||'?') : '?',
       data,
       operacao,
       hrsRtk:   rtkCapped,
       hrsOp,
     });
   }
-  return out;
+  return {rows: out, cm, totalRaw: rows.length};
 }
 
 /* ============================================================
@@ -687,11 +739,36 @@ function readFile(file, cb){
   reader.readAsText(file, 'UTF-8');
 }
 
+function isXlsx(file){
+  const ext = file.name.split('.').pop().toLowerCase();
+  return ext === 'xlsx' || ext === 'xls';
+}
+
+function readFileXLSX(file, cb){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      cb(rows);
+    } catch(err){
+      setStatus('Erro ao ler XLSX: '+err.message,'red');
+    }
+  };
+  reader.onerror = () => setStatus('Erro ao ler arquivo','red');
+  reader.readAsArrayBuffer(file);
+}
+
 /* ============================================================
    APPLY FILTERS
    ============================================================ */
 function applyFilters(rows){
-  const frenteFilter = [...document.getElementById('filter-frente').selectedOptions].map(o=>o.value);
+  const frenteFilter = getSelectedFrentes();
+  // If all frentes are selected (or none deselected), treat as "no filter"
+  const totalChips = document.querySelectorAll('#filter-frente .chip').length;
+  const allSelected = frenteFilter.length === totalChips;
   const fazFilter    = document.getElementById('filter-fazenda').value;
   const projFilter   = document.getElementById('filter-projeto').value;
   const equipFilter  = normText(document.getElementById('filter-equip').value);
@@ -700,8 +777,8 @@ function applyFilters(rows){
   const projMap = STATE.projLoaded ? processProjRows(STATE.rawProj) : null;
 
   return rows.filter(r=>{
-    // Frente
-    if(frenteFilter.length && !frenteFilter.includes(r.frente)) return false;
+    // Frente: filter only when not all are selected
+    if(!allSelected && !frenteFilter.includes(r.frente)) return false;
     // Fazenda
     if(fazFilter && normText(r.fazenda)!==normText(fazFilter)) return false;
     // Project filter
@@ -1239,15 +1316,36 @@ function sortTable(which, col){
 }
 
 /* ============================================================
+   FRENTE CHIP HELPERS
+   ============================================================ */
+function getSelectedFrentes(){
+  return [...document.querySelectorAll('#filter-frente .chip.active')].map(c=>c.dataset.value);
+}
+
+function selectAllFrentes(){
+  document.querySelectorAll('#filter-frente .chip').forEach(c=>c.classList.add('active'));
+}
+
+function clearAllFrentes(){
+  document.querySelectorAll('#filter-frente .chip').forEach(c=>c.classList.remove('active'));
+}
+
+/* ============================================================
    POPULATE FILTER SELECTS
    ============================================================ */
 function populateFilters(rows){
   const frentes = [...new Set(rows.map(r=>r.frente))].sort();
   const fazendas = [...new Set(rows.map(r=>r.fazenda))].sort();
 
+  // Rebuild frente chips — preserve current selection
   const frenteEl = document.getElementById('filter-frente');
-  const selectedFrentes = [...frenteEl.selectedOptions].map(o=>o.value);
-  frenteEl.innerHTML = frentes.map(f=>`<option value="${escHtml(f)}" ${selectedFrentes.includes(f)?'selected':''}>${escHtml(f)}</option>`).join('');
+  const prevSelected = new Set(getSelectedFrentes());
+  // Default: all selected when first loaded
+  const isFirstLoad = prevSelected.size === 0 && frenteEl.children.length === 0;
+  frenteEl.innerHTML = frentes.map(f=>{
+    const active = isFirstLoad || prevSelected.has(f) ? 'active' : '';
+    return `<span class="chip ${active}" data-value="${escHtml(f)}" onclick="this.classList.toggle('active')" title="${escHtml(f)}">${escHtml(f)}</span>`;
+  }).join('');
 
   const fazEl = document.getElementById('filter-fazenda');
   const selFaz = fazEl.value;
@@ -1303,6 +1401,28 @@ function setStatus(msg, type=''){
 }
 function setRecords(n){ document.getElementById('sb-records').textContent = n!=null?`${n} registros filtrados`:''; }
 function setTime(ms){ document.getElementById('sb-time').textContent = ms!=null?`Processado em ${ms}ms`:''; }
+
+function showDiagnostics(cm, totalRaw, totalFiltered){
+  const panel = document.getElementById('diag-panel');
+  const colsEl = document.getElementById('diag-cols');
+  const fields = {
+    frente:'Frente', equip:'Equipamento', fazenda:'Fazenda',
+    data:'Data', operacao:'Operação', hrsRtk:'Hrs RTK', hrsOp:'Hrs Operacionais'
+  };
+  let html = '';
+  let missing = [];
+  for(const [key, label] of Object.entries(fields)){
+    if(cm[key]){
+      html += `<span class="ok" title="Coluna: ${escHtml(cm[key])}">✓ ${label}</span>`;
+    } else {
+      html += `<span class="miss">✗ ${label}</span>`;
+      missing.push(label);
+    }
+  }
+  html += `<span style="color:var(--muted);margin-left:8px">${totalRaw} linhas brutas → ${totalFiltered} registros válidos</span>`;
+  colsEl.innerHTML = html;
+  panel.style.display = missing.length || totalFiltered === 0 ? 'flex' : 'none';
+}
 
 /* ============================================================
    CALCULATE — orchestra
@@ -1422,6 +1542,7 @@ function clearAll(){
   document.getElementById('heatmap-container').innerHTML='<div class="empty-state"><p>Sem dados</p></div>';
   document.getElementById('filter-frente').innerHTML='';
   document.getElementById('filter-fazenda').innerHTML='<option value="">Todas</option>';
+  document.getElementById('diag-panel').style.display='none';
   document.getElementById('notices').innerHTML='';
   Object.keys(STATE.charts).forEach(id=>{STATE.charts[id].destroy();delete STATE.charts[id];});
   setStatus('Dados limpos','');setRecords(null);setTime(null);
@@ -1474,25 +1595,35 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const dz=document.getElementById(dzId);
     const nameEl=document.getElementById(nameId);
 
+    const handleRows=(file, rows)=>{
+      if(isProj){
+        STATE.rawProj=rows;
+        STATE.projLoaded=rows.length>0;
+        STATE.fileProjName=file.name;
+        setStatus(`Projetos carregados: ${rows.length} linhas`,'green');
+      } else {
+        const result = processOpRows(rows);
+        STATE.rawOp = result.rows;
+        STATE.fileOpName=file.name;
+        populateFilters(STATE.rawOp);
+        showDiagnostics(result.cm, result.totalRaw, result.rows.length);
+        setStatus(`Operacional: ${result.rows.length} registros válidos (de ${result.totalRaw} linhas)`,'green');
+      }
+      showNotices();
+    };
+
     const handle=(file)=>{
       if(!file) return;
       nameEl.textContent=file.name;
       setStatus('Lendo '+file.name+'...');
-      readFile(file, text=>{
-        const rows=parseTXT(text);
-        if(isProj){
-          STATE.rawProj=rows;
-          STATE.projLoaded=rows.length>0;
-          STATE.fileProjName=file.name;
-          setStatus(`Projetos carregados: ${rows.length} linhas`,'green');
-        } else {
-          STATE.rawOp=processOpRows(rows);
-          STATE.fileOpName=file.name;
-          populateFilters(STATE.rawOp);
-          setStatus(`Operacional: ${STATE.rawOp.length} registros válidos (de ${rows.length} linhas)`,'green');
-        }
-        showNotices();
-      });
+      if(isProj && isXlsx(file)){
+        readFileXLSX(file, rows=>handleRows(file, rows));
+      } else {
+        readFile(file, text=>{
+          const rows=parseTXT(text);
+          handleRows(file, rows);
+        });
+      }
     };
 
     input.addEventListener('change', e=>handle(e.target.files[0]));
