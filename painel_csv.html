@@ -1773,6 +1773,12 @@
       const periodOffset = skipP1 ? 1 : 0;
       const frente     = ($('frenteColheita').value || '').trim();
 
+      // % com 1 casa decimal (layout do PPTX)
+      const fmtPct1 = v => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits:1, maximumFractionDigits:1 }) + '%';
+      // Índice do período de referência dentro do array já fatiado (skipP1)
+      const refIdxRaw = R.offRefIdx != null ? R.offRefIdx : 3;
+      const refIdxSliced = skipP1 ? Math.max(0, refIdxRaw - 1) : refIdxRaw;
+
       const C = { navy: '063F58', teal: '0B7497', white: 'FFFFFF', ink: '132033',
                   muted: '667085', line: 'D8E1EA', soft: 'E7F4F8', red: 'B42318',
                   green: '087443', yellow: 'FFF7CC', lightbg: 'F7FBFD' };
@@ -1799,20 +1805,21 @@
       if (frente) s1.addText(frente, { x:0, y:0, w:W-0.35, h:0.70, fontSize:12, bold:true, color:'A8D8EA', valign:'middle', align:'right', margin:10 });
 
       const nPeriods = Math.min(calculated.length, 5);
-      const pCardW = (W - 0.7) / nPeriods;
-      const pCardH = 0.55;
+      const pGap = 0.12;
+      const pCardW = (W - 0.7 - pGap * (nPeriods - 1)) / nPeriods;
+      const pCardH = 0.60;
       const pCardY = 0.80;
       periods.slice(0, nPeriods).forEach((p, i) => {
-        const x = 0.35 + i * (pCardW + ((W - 0.7 - pCardW * nPeriods) / Math.max(nPeriods - 1, 1)));
-        const isRef = i === nPeriods - 1;
+        const x = 0.35 + i * (pCardW + pGap);
+        const isRef = i === refIdxSliced;
         const lbl = labels[i] || `P${i+1+periodOffset}`;
         s1.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y:pCardY, w:pCardW, h:pCardH,
           fill:{ color: isRef ? C.teal : C.white }, rectRadius:0.08,
           shadow: makeShadow(), line:{ color: isRef ? C.teal : C.line, pt:1 } });
         s1.addText([
-          { text:`${lbl}  `, options:{ bold:true, fontSize:10, color: isRef ? C.white : C.navy } },
-          { text:`${formatDateBr(p.start)} a ${formatDateBr(p.end)}`, options:{ fontSize:9, color: isRef ? 'D0EEF8' : C.muted } }
-        ], { x:x+0.08, y:pCardY, w:pCardW-0.16, h:pCardH, valign:'middle', margin:0 });
+          { text:lbl, options:{ bold:true, fontSize:10, color: isRef ? C.white : C.navy, breakLine:true } },
+          { text:`${formatDateBr(p.start)} a ${formatDateBr(p.end)}`, options:{ fontSize:8, color: isRef ? 'D0EEF8' : C.muted } }
+        ], { x:x+0.06, y:pCardY, w:pCardW-0.12, h:pCardH, valign:'middle', align:'center', margin:0, lineSpacingMultiple:0.9 });
       });
 
       const mDefs = [
@@ -1821,45 +1828,54 @@
         { label:'% Improdutivo',    key:'pctImprod',     color:C.red   },
         { label:'% Disponibilidade',key:'pctDisponivel', color:C.teal  },
       ];
-      const mCardW = (W - 0.7) / 4;
-      const mCardH = 1.05;
-      const mCardY = pCardY + pCardH + 0.10;
+      const mGap   = 0.10;
+      const mCardW = (W - 0.7 - mGap * 3) / 4;
+      const mRowH  = 0.205;
+      const mTitleH = 0.30;
+      const mCardH = mTitleH + nPeriods * mRowH + 0.10;
+      const mCardY = pCardY + pCardH + 0.14;
+      const isAcumLbl = i => (labels[i] || '').toLowerCase() === 'acumulado';
       mDefs.forEach((m, mi) => {
-        const x = 0.35 + mi * (mCardW + 0.07);
+        const x = 0.35 + mi * (mCardW + mGap);
+        // card + faixa de título colorida
         s1.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y:mCardY, w:mCardW, h:mCardH,
           fill:{ color:C.white }, rectRadius:0.10, shadow:makeShadow(), line:{ color:C.line, pt:1 } });
-        s1.addText(m.label, { x:x+0.1, y:mCardY+0.06, w:mCardW-0.2, h:0.20,
-          fontSize:8, bold:true, color:C.muted, align:'center', margin:0 });
+        s1.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y:mCardY, w:mCardW, h:mTitleH,
+          fill:{ color:m.color }, rectRadius:0.10, line:{ color:m.color } });
+        s1.addText(m.label, { x:x+0.06, y:mCardY, w:mCardW-0.12, h:mTitleH,
+          fontSize:8.5, bold:true, color:C.white, align:'center', valign:'middle', margin:0 });
 
         const vals = calculated.slice(0, nPeriods).map(p => p[m.key]);
-        const valRuns = vals.map((v, i) => [
-          { text: `${labels[i] || 'P'+(i+1+periodOffset)} `, options:{ fontSize:7, color:C.muted } },
-          { text: fmtPct(v), options:{ fontSize:10, bold:true, color: m.color } },
-          { text: i < vals.length-1 ? '   ' : '', options:{ fontSize:8 } }
-        ]).flat();
-        s1.addText(valRuns, { x:x+0.06, y:mCardY+0.27, w:mCardW-0.12, h:0.26, align:'center', margin:0, valign:'middle' });
-
-        s1.addShape(pres.shapes.LINE, { x:x+0.15, y:mCardY+0.58, w:mCardW-0.30, h:0,
-          line:{ color:C.line, pt:0.5 } });
-
-        const baseVals = vals.filter((_, i) => (labels[i] || '').toLowerCase() !== 'acumulado');
-        const diffRuns = baseVals.slice(1).map((_, i) => {
-          const lbl2 = `P${i+2+periodOffset}-P${i+1+periodOffset}`;
-          const diff = baseVals[i+1] - baseVals[i];
-          const isPositiveBetter = m.key !== 'pctImprod';
-          const isGood = isPositiveBetter ? diff >= 0 : diff <= 0;
-          const sign  = diff >= 0 ? '+' : '';
-          const clr   = Math.abs(diff) < 0.01 ? C.muted : (isGood ? C.green : C.red);
-          return [
-            { text: lbl2, options:{ fontSize:7, color:C.muted } },
-            { text: ` ${sign}${diff.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}pp`, options:{ fontSize:8, bold:true, color:clr } },
-            { text: i<baseVals.length-2 ? '   ' : '', options:{ fontSize:7, color:C.muted } }
-          ];
-        }).flat();
-        if (diffRuns.length) s1.addText(diffRuns, { x:x+0.06, y:mCardY+0.62, w:mCardW-0.12, h:0.38, align:'center', margin:0, valign:'middle' });
+        vals.forEach((v, i) => {
+          const ry = mCardY + mTitleH + 0.03 + i * mRowH;
+          const lbl = labels[i] || ('P' + (i + 1 + periodOffset));
+          const isRef = i === refIdxSliced;
+          if (isRef) {
+            s1.addShape(pres.shapes.RECTANGLE, { x:x+0.04, y:ry, w:mCardW-0.08, h:mRowH,
+              fill:{ color:C.soft }, line:{ color:C.line, pt:0.3 } });
+          }
+          // rótulo do período
+          s1.addText(lbl, { x:x+0.10, y:ry, w:mCardW*0.40, h:mRowH,
+            fontSize:8, bold:isRef, color:C.ink, align:'left', valign:'middle', margin:0 });
+          // valor
+          s1.addText(fmtPct1(v), { x:x+mCardW*0.36, y:ry, w:mCardW*0.36, h:mRowH,
+            fontSize:9.5, bold:true, color:m.color, align:'right', valign:'middle', margin:0 });
+          // delta vs período anterior (ignora acumulado)
+          let deltaTxt = '', deltaClr = C.muted;
+          if (i > 0 && !isAcumLbl(i) && !isAcumLbl(i-1)) {
+            const diff = v - vals[i-1];
+            const isPositiveBetter = m.key !== 'pctImprod';
+            const isGood = isPositiveBetter ? diff >= 0 : diff <= 0;
+            const sign = diff >= 0 ? '+' : '';
+            deltaClr = Math.abs(diff) < 0.05 ? C.muted : (isGood ? C.green : C.red);
+            deltaTxt = `${sign}${diff.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}`;
+          }
+          s1.addText(deltaTxt, { x:x+mCardW*0.72, y:ry, w:mCardW*0.26, h:mRowH,
+            fontSize:7.5, bold:true, color:deltaClr, align:'right', valign:'middle', margin:0 });
+        });
       });
 
-      const offY    = mCardY + mCardH + 0.12;
+      const offY    = mCardY + mCardH + 0.14;
       const offH    = H - offY - 0.18;
       const colW    = (W - 0.85) / 2;
       const col1X   = 0.35;
