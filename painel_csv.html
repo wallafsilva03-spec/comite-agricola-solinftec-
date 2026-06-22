@@ -974,7 +974,7 @@
       const frente = String(f[cm.frente] || '').trim();
       const frenteNorm = normText(frente);
       if (frenteNorm === 'OFICINA CENTRAL') return null;
-      if (frenteNorm === 'COLHEITA DE MUDA -MEC 1') return null;
+      if (/COLHEITA\s+DE\s+MUDA\s*-\s*MEC\s*1/.test(frenteNorm)) return null;
 
       const data = normDate(f[cm.data]);
       if (!data) return null;
