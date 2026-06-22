@@ -972,7 +972,9 @@
       if (codigo_equip.startsWith('9')) return null;
 
       const frente = String(f[cm.frente] || '').trim();
-      if (normText(frente) === 'OFICINA CENTRAL') return null;
+      const frenteNorm = normText(frente);
+      if (frenteNorm === 'OFICINA CENTRAL') return null;
+      if (frenteNorm === 'COLHEITA DE MUDA -MEC 1') return null;
 
       const data = normDate(f[cm.data]);
       if (!data) return null;
