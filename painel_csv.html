@@ -975,6 +975,7 @@
       const frenteNorm = normText(frente);
       if (frenteNorm === 'OFICINA CENTRAL') return null;
       if (frenteNorm === 'APOIO BRIGADA DE INCENDIO') return null;
+      if (/CAMINHAO\s+PRANCHA/.test(frenteNorm)) return null;
       if (/CAMINHOES\s+BATE\s+E\s+VOLTA/.test(frenteNorm)) return null;
       if (/COLHEITA\s+DE\s+MUDA\s*-\s*MEC\s*1/.test(frenteNorm)) return null;
       if (/PLANTIO\s+MECANIZADO\s*1/.test(frenteNorm)) return null;
@@ -1184,6 +1185,7 @@
     // ─── CALCULATION ──────────────────────────────────────────────────────────
     const FRONTES_EXCLUIDAS_EXATAS = ['OFICINA CENTRAL', 'APOIO BRIGADA DE INCENDIO'];
     const FRONTES_EXCLUIDAS_REGEX = [
+      /CAMINHAO\s+PRANCHA/,
       /CAMINHOES\s+BATE\s+E\s+VOLTA/,
       /COLHEITA\s+DE\s+MUDA\s*-\s*MEC\s*1/,
       /PLANTIO\s+MECANIZADO\s*1/,
