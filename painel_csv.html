@@ -969,8 +969,10 @@
     // 18:horimetro_final, 19:horimetro_secundario, 20:velocidade_media
     function normalizeRow(f, cm) {
       const codigo_equip = String(f[cm.codigo_equipamento] || '').trim();
-      // Exclude rows where codigo_equipamento starts with '9'
       if (codigo_equip.startsWith('9')) return null;
+
+      const frente = String(f[cm.frente] || '').trim();
+      if (normText(frente) === 'OFICINA CENTRAL') return null;
 
       const data = normDate(f[cm.data]);
       if (!data) return null;
@@ -985,7 +987,7 @@
 
       return {
         d: data,
-        f: String(f[cm.frente] || '').trim(),
+        f: frente,
         e: codigo_equip,
         m: String(f[cm.equipamento] || '').trim(),
         c: classificacao,
