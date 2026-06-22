@@ -674,7 +674,7 @@ function toNum(s){
    PROCESS OPERATIONAL TXT
    ============================================================ */
 function processOpRows(rows){
-  if(!rows.length) return {rows:[], cm:{}};
+  if(!rows.length) return {rows:[], cm:{}, totalRaw:0, rawHeaders:[]};
   const headers = Object.keys(rows[0]);
   const cm = buildColMap(headers);
 
@@ -704,7 +704,7 @@ function processOpRows(rows){
       hrsOp,
     });
   }
-  return {rows: out, cm, totalRaw: rows.length};
+  return {rows: out, cm, totalRaw: rows.length, rawHeaders: headers};
 }
 
 /* ============================================================
@@ -1402,7 +1402,7 @@ function setStatus(msg, type=''){
 function setRecords(n){ document.getElementById('sb-records').textContent = n!=null?`${n} registros filtrados`:''; }
 function setTime(ms){ document.getElementById('sb-time').textContent = ms!=null?`Processado em ${ms}ms`:''; }
 
-function showDiagnostics(cm, totalRaw, totalFiltered){
+function showDiagnostics(cm, totalRaw, totalFiltered, rawHeaders){
   const panel = document.getElementById('diag-panel');
   const colsEl = document.getElementById('diag-cols');
   const fields = {
@@ -1410,18 +1410,26 @@ function showDiagnostics(cm, totalRaw, totalFiltered){
     data:'Data', operacao:'Operação', hrsRtk:'Hrs RTK', hrsOp:'Hrs Operacionais'
   };
   let html = '';
-  let missing = [];
   for(const [key, label] of Object.entries(fields)){
     if(cm[key]){
-      html += `<span class="ok" title="Coluna: ${escHtml(cm[key])}">✓ ${label}</span>`;
+      html += `<span class="ok" title="Mapeado para coluna: &quot;${escHtml(cm[key])}&quot;">✓ ${label}</span>`;
     } else {
-      html += `<span class="miss">✗ ${label}</span>`;
-      missing.push(label);
+      html += `<span class="miss" title="Não encontrado">✗ ${label}</span>`;
     }
   }
-  html += `<span style="color:var(--muted);margin-left:8px">${totalRaw} linhas brutas → ${totalFiltered} registros válidos</span>`;
+  html += `<span style="color:var(--muted);margin-left:8px">${totalRaw} linhas → ${totalFiltered} registros</span>`;
+
+  // Always show raw headers so user can see what's in the file
+  html += `<details style="width:100%;margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">▶ Ver todos os cabeçalhos detectados no arquivo (${rawHeaders.length})</summary>`;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">`;
+  for(const h of rawHeaders){
+    const isMapped = Object.values(cm).includes(h);
+    html += `<span style="padding:2px 7px;border-radius:10px;border:1px solid;font-size:10px;${isMapped?'border-color:var(--green);color:var(--green)':'border-color:var(--border);color:var(--muted)'}">${escHtml(h)}</span>`;
+  }
+  html += `</div></details>`;
+
   colsEl.innerHTML = html;
-  panel.style.display = missing.length || totalFiltered === 0 ? 'flex' : 'none';
+  panel.style.display = 'flex';
 }
 
 /* ============================================================
@@ -1606,7 +1614,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         STATE.rawOp = result.rows;
         STATE.fileOpName=file.name;
         populateFilters(STATE.rawOp);
-        showDiagnostics(result.cm, result.totalRaw, result.rows.length);
+        showDiagnostics(result.cm, result.totalRaw, result.rows.length, result.rawHeaders);
         setStatus(`Operacional: ${result.rows.length} registros válidos (de ${result.totalRaw} linhas)`,'green');
       }
       showNotices();
