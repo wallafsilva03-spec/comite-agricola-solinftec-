@@ -1,0 +1,2063 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel Comparativo de Eficiência Operacional — CSV L.A</title>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <style>
+    :root {
+      --bg: #eef3f7;
+      --card: #ffffff;
+      --ink: #132033;
+      --muted: #667085;
+      --line: #d8e1ea;
+      --primary: #0b5d7c;
+      --primary-dark: #06445d;
+      --primary-soft: #e7f4f8;
+      --green: #087443;
+      --red: #b42318;
+      --orange: #b54708;
+      --shadow: 0 14px 34px rgba(16, 24, 40, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #e6f1f5 0%, var(--bg) 260px);
+      color: var(--ink);
+    }
+
+    .app {
+      max-width: 1760px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 22px 18px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #063f58, #0b7497);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 25px;
+      letter-spacing: -0.3px;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 1050px;
+      line-height: 1.4;
+      color: rgba(255,255,255,.84);
+      font-size: 14px;
+    }
+
+    .hero-badge {
+      background: rgba(255,255,255,.16);
+      border: 1px solid rgba(255,255,255,.25);
+      padding: 12px 20px;
+      border-radius: 16px;
+      text-align: center;
+      min-width: 160px;
+      flex-shrink: 0;
+    }
+    .hero-badge .b-num { font-size: 30px; font-weight: 900; }
+    .hero-badge .b-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; opacity: .85; margin-top: 2px; }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      margin-top: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .filter-head {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .chevron {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 99px;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      font-weight: 900;
+      transition: transform .18s ease;
+    }
+
+    .collapsed .chevron { transform: rotate(-90deg); }
+
+    .panel-body { padding: 14px 16px 16px; }
+    .collapsed .panel-body { display: none; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .action-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .action-btn:hover { background: #f5f8fb; }
+    .action-btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .action-btn.primary:hover { background: var(--primary-dark); }
+
+    /* CSV import grid */
+    .files-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .file-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      background: #f9fbfd;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .file-card h4 { margin: 0; font-size: 13px; color: var(--primary-dark); }
+    .file-card .bname {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      outline: none;
+    }
+    .dropzone {
+      border: 2px dashed #b9cedb;
+      border-radius: 12px;
+      padding: 16px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s;
+      background: #fff;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dropzone:hover, .dropzone.drag { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-dark); }
+    .dropzone.loaded { border-style: solid; border-color: #8fd0ad; background: #effaf3; color: #0c6b43; font-weight: 700; }
+    .dropzone input { display: none; }
+    .file-stat { font-size: 11px; color: var(--muted); text-align: center; }
+    .file-clear { font-size: 11px; color: var(--red); cursor: pointer; text-align: center; text-decoration: underline; }
+
+    .filters-horizontal {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .control-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      padding: 12px;
+      min-height: 100%;
+    }
+
+    .control-card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: #344054;
+    }
+
+    .label {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      color: #475467;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+
+    .hint {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .switch-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 11px;
+      border-radius: 14px;
+      background: #f7fbfd;
+      border: 1px solid #d7eef5;
+      cursor: pointer;
+    }
+
+    .switch-row input {
+      width: 19px;
+      height: 19px;
+      margin-top: 1px;
+      accent-color: var(--primary);
+    }
+
+    .switch-title { font-size: 13px; font-weight: 900; }
+    .switch-desc { margin-top: 3px; font-size: 12px; color: var(--muted); line-height: 1.35; }
+
+    .hidden { display: none !important; }
+
+    .periods-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(190px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .period-card {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(180deg, #ffffff, #fbfdff);
+    }
+
+    .period-card.reference {
+      border-color: #9bd7e9;
+      background: linear-gradient(180deg, #f1fbff, #ffffff);
+    }
+
+    .period-card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .badge-ref {
+      font-size: 10px;
+      text-transform: uppercase;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: white;
+      letter-spacing: .4px;
+    }
+
+    .date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .date-field label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 800;
+    }
+
+    .date-field input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 9px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .notice {
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #344054;
+      margin-bottom: 12px;
+    }
+
+    .notice.ok {
+      background: #ecfdf3;
+      border-color: #abefc6;
+      color: #067647;
+    }
+
+    .notice.warn {
+      background: #fffaeb;
+      border-color: #fedf89;
+      color: #93370d;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .metric-card {
+      padding: 13px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+
+    .metric-value {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+
+    .metric-sub {
+      margin-top: 5px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .comparison-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 980px;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 11px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: #fff;
+      min-width: 285px;
+    }
+
+    thead th {
+      background: var(--primary-dark);
+      color: white;
+      font-weight: 900;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    thead th:first-child {
+      background: var(--primary-dark);
+      z-index: 4;
+    }
+
+    tr:last-child th, tr:last-child td { border-bottom: 0; }
+    th:last-child, td:last-child { border-right: 0; }
+
+    .metric-line th {
+      font-weight: 900;
+      color: #233044;
+    }
+
+    .metric-line td {
+      font-weight: 900;
+      font-size: 15px;
+    }
+
+    .section-row th, .section-row td {
+      background: #fff7cc !important;
+      color: #3b3200;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .section-row th:first-child { text-align: left; }
+    .offender-line th { font-weight: 900; }
+    .empty-hit { color: var(--muted); font-style: italic; font-weight: 600; }
+
+    .footer-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1250px) {
+      .filters-horizontal { grid-template-columns: 1fr; }
+      .periods-grid { grid-template-columns: 1fr 1fr; }
+      .cards { grid-template-columns: 1fr 1fr; }
+      .files-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      .app { padding: 10px; }
+      .hero { flex-direction: column; }
+      .filters-horizontal, .periods-grid, .cards, .files-grid { grid-template-columns: 1fr; }
+      .date-row { grid-template-columns: 1fr; }
+      .panel-head { flex-direction: column; align-items: stretch; }
+      .top-actions { justify-content: stretch; }
+      .action-btn { width: 100%; }
+    }
+
+    /* ── Tabs ── */
+    .tabs-nav {
+      display: flex;
+      gap: 0;
+      padding: 14px 0 0 0;
+      border-bottom: 2px solid var(--line);
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      padding: 10px 28px;
+      border: 2px solid var(--line);
+      border-bottom: 0;
+      border-radius: 12px 12px 0 0;
+      background: #f0f5f8;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      color: var(--muted);
+      margin-right: 4px;
+      position: relative;
+      bottom: -2px;
+      transition: background .15s, color .15s;
+    }
+    .tab-btn.active {
+      background: var(--card);
+      color: var(--primary-dark);
+      border-bottom: 2px solid var(--card);
+    }
+
+    /* ── Matriz ── */
+    .matriz-config {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .matriz-config-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #f9fbfd;
+    }
+    .matriz-config-card h4 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--primary-dark);
+      font-weight: 900;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .meta-card {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f9fbfd;
+    }
+    .meta-card > label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meta-sub-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4px;
+    }
+    .meta-sub-grid small {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .meta-sub-grid input[type=number] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      outline: none;
+    }
+    .matriz-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      margin-top: 16px;
+    }
+    .mtz {
+      border-collapse: collapse;
+      min-width: 860px;
+      width: 100%;
+      font-size: 13px;
+    }
+    .mtz th, .mtz td {
+      border: 1px solid #c8d4dd;
+      padding: 7px 9px;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .mtz thead th { background: #063f58; color: #fff; font-weight: 900; font-size: 12px; }
+    .mtz .mtz-sec td, .mtz .mtz-sec th {
+      background: #cee3ef; color: #1a3a50; font-weight: 900; text-align: left; font-size: 12px;
+    }
+    .mtz .mtz-subsec td {
+      background: #deeef6; color: #1a3a50; font-weight: 900; text-align: left;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .3px;
+    }
+    .mtz .mtz-metric th {
+      background: #fff; color: #233044; font-weight: 900; text-align: left; min-width: 210px;
+    }
+    .mtz .mtz-metric td { font-weight: 700; background: #fff; }
+    .mtz .mtz-metric:nth-child(even) th, .mtz .mtz-metric:nth-child(even) td { background: #f7fbfd; }
+    .mtz .mtz-offsec td {
+      background: #fff3cd; color: #5c4000; font-weight: 900; text-align: left; padding: 8px 12px;
+    }
+    .mtz .mtz-offrow th {
+      background: #fff; color: #233044; font-weight: 700; text-align: left; min-width: 200px; font-size: 12px;
+    }
+    .mtz .mtz-offrow td { background: #fff; font-weight: 700; }
+    .mtz .mtz-offrow:nth-child(even) th, .mtz .mtz-offrow:nth-child(even) td { background: #f7fbfd; }
+    .sc {
+      display: inline-block; width: 13px; height: 13px; border-radius: 50%;
+      vertical-align: middle; margin-left: 5px;
+    }
+    .sc.g { background: #22c55e; }
+    .sc.r { background: #ef4444; }
+    .vn { color: #b42318; font-weight: 900; }
+    .vp { color: #087443; font-weight: 900; }
+    @media (max-width: 1250px) { .matriz-config { grid-template-columns: 1fr 1fr; } .meta-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 760px) { .matriz-config { grid-template-columns: 1fr; } .meta-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div>
+        <h1>Painel Comparativo de Eficiência Operacional — L.A</h1>
+        <p>
+          Importe até 4 bases CSV no layout <strong>L.A</strong> (colunas <strong>Classificacao_Ativ</strong> e
+          <strong>Tempo Decimal</strong>), configure filtros gerais e compare 4 períodos.
+          O 4º período é a referência para definir os ofensores. A opção avançada transforma apenas o CD Atividade 200 /
+          DESLOCAMENTO em produtiva quando ativada. Suporta período acumulado que abrange todos os 4 períodos.
+        </p>
+      </div>
+      <div class="hero-badge">
+        <div id="heroNum" class="b-num">0</div>
+        <div class="b-lbl">Registros carregados</div>
+      </div>
+    </header>
+
+    <!-- CSV IMPORT -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Importar bases CSV (até 4)</h2>
+      </div>
+      <div class="panel-body">
+        <div id="filesGrid" class="files-grid"></div>
+      </div>
+    </section>
+
+    <div class="tabs-nav">
+      <button id="tabBtnComparativo" class="tab-btn active" type="button">Comparativo</button>
+      <button id="tabBtnMatriz" class="tab-btn" type="button">Matriz</button>
+    </div>
+
+    <div id="tabComparativo">
+    <section id="filtersPanel" class="panel">
+      <div id="filtersHeader" class="panel-head filter-head" title="Clique para abrir ou recolher os filtros">
+        <h2 class="panel-title"><span class="chevron">▾</span> Filtros gerais</h2>
+        <div class="top-actions">
+          <span id="filterSummary" class="chip">Configure os filtros</span>
+          <button id="copyP4Btn" class="action-btn" type="button">Copiar Período 4 para todos</button>
+          <button id="saveFiltersBtn" class="action-btn primary" type="button">Salvar filtros e recolher</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="filters-horizontal">
+          <div class="control-card">
+            <h3>Configurações</h3>
+            <span class="label" style="margin-top:10px">Configuração avançada</span>
+            <label class="switch-row">
+              <input id="deslocToggle" type="checkbox" />
+              <div>
+                <div class="switch-title">DESLOCAMENTO 200 produtivo</div>
+                <div class="switch-desc">Recalcula produtivo, parado, eficiência e ofensores.</div>
+              </div>
+            </label>
+            <label class="switch-row" style="margin-top:8px">
+              <input id="skipP1Toggle" type="checkbox" />
+              <div>
+                <div class="switch-title">Desconsiderar Período 1</div>
+                <div class="switch-desc">Oculta o P1 da tabela, ofensores e PowerPoint.</div>
+              </div>
+            </label>
+            <label class="switch-row" style="margin-top:8px">
+              <input id="incluirAcumulado" type="checkbox" />
+              <div>
+                <div class="switch-title">Incluir Período Acumulado</div>
+                <div class="switch-desc">Adiciona coluna Acumulado (mínimo início ao máximo fim dos 4 períodos).</div>
+              </div>
+            </label>
+          </div>
+
+          <div id="frontGroup" class="control-card" style="grid-column: span 3">
+            <h3>Filtro por Frente <span style="font-size:12px;font-weight:600;color:var(--muted)">(opcional)</span></h3>
+            <span class="label">Digite as frentes separadas por vírgula</span>
+            <input id="frenteFilterInput" type="text" placeholder="Ex: FRENTE 2 - CORTE MECANIZADO, FRENTE 4 - CORTE MECANIZADO"
+              style="width:100%;border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:14px;color:var(--ink);outline:none;margin-bottom:8px" />
+            <span class="hint">Deixe em branco para trazer todos os dados. Use o nome exato da frente (ex.: FRENTE 3 - CORTE MECANIZADO). Separe múltiplas por vírgula.</span>
+          </div>
+        </div>
+
+        <div class="periods-grid">
+          <div class="period-card">
+            <h3>Período 1</h3>
+            <div class="date-row">
+              <div class="date-field"><label>Início</label><input id="p1Start" type="date" /></div>
+              <div class="date-field"><label>Fim</label><input id="p1End" type="date" /></div>
+            </div>
+          </div>
+          <div class="period-card reference">
+            <h3>Período 2 <span class="badge-ref">Referência</span></h3>
+            <div class="date-row">
+              <div class="date-field"><label>Início</label><input id="p2Start" type="date" /></div>
+              <div class="date-field"><label>Fim</label><input id="p2End" type="date" /></div>
+            </div>
+          </div>
+          <div class="period-card">
+            <h3>Período 3</h3>
+            <div class="date-row">
+              <div class="date-field"><label>Início</label><input id="p3Start" type="date" /></div>
+              <div class="date-field"><label>Fim</label><input id="p3End" type="date" /></div>
+            </div>
+          </div>
+          <div class="period-card">
+            <h3>Período 4</h3>
+            <div class="date-row">
+              <div class="date-field"><label>Início</label><input id="p4Start" type="date" /></div>
+              <div class="date-field"><label>Fim</label><input id="p4End" type="date" /></div>
+            </div>
+          </div>
+        </div>
+        <div class="footer-note">
+          Preencha os 4 períodos para calcular. Os períodos podem ser iguais. O Período 4 (referência) define os ofensores que serão comparados contra os períodos 1, 2 e 3.
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Resultado comparativo</h2>
+        <div class="top-actions">
+          <button id="calcBtn" class="action-btn primary" type="button">Calcular comparação</button>
+          <button id="copyTableBtn" class="action-btn" type="button">Copiar tabela</button>
+          <button id="exportCsvBtn" class="action-btn" type="button">Exportar CSV</button>
+          <button id="exportPptxBtn" class="action-btn" type="button">⬇ Exportar PowerPoint</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <label style="font-size:13px;font-weight:800;color:#475467;white-space:nowrap">Frente de Colheita:</label>
+          <input id="frenteColheita" type="text" placeholder="Ex: FRENTE 4 - CORTE MECANIZADO"
+            style="flex:1;max-width:420px;border:1px solid var(--line);border-radius:11px;padding:9px 12px;font-size:14px;font-weight:700;color:var(--ink);outline:none" />
+        </div>
+        <div id="statusBox" class="notice warn">Importe pelo menos uma base CSV para calcular.</div>
+        <div id="resultTable" class="comparison-wrap hidden"></div>
+        <div class="footer-note">
+          Regras: Horas disponíveis = horas totais - (CONDICAO CLIMATICA + MANUTENCAO + INDUSTRIA). Eficiência operacional = horas produtivas / horas disponíveis. Parado = horas totais - horas produtivas. O percentual dos ofensores é calculado sobre o Parado de cada período.
+        </div>
+      </div>
+    </section>
+    </div><!-- /tabComparativo -->
+
+    <div id="tabMatriz" class="hidden">
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Matriz RDO</h2>
+          <div class="top-actions">
+            <button id="calcMatrizBtn" class="action-btn primary" type="button">Calcular Matriz</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="matriz-config">
+            <div class="matriz-config-card">
+              <h4>Período Anterior</h4>
+              <div class="date-row">
+                <div class="date-field"><label>Início</label><input id="mpAntStart" type="date" /></div>
+                <div class="date-field"><label>Fim</label><input id="mpAntEnd" type="date" /></div>
+              </div>
+            </div>
+            <div class="matriz-config-card">
+              <h4>Período Atual</h4>
+              <div class="date-row">
+                <div class="date-field"><label>Início</label><input id="mpAtuStart" type="date" /></div>
+                <div class="date-field"><label>Fim</label><input id="mpAtuEnd" type="date" /></div>
+              </div>
+            </div>
+            <div class="matriz-config-card">
+              <h4>Mês Fechado</h4>
+              <div class="date-field" style="margin-bottom:8px">
+                <label>Label (ex: Maio)</label>
+                <input id="mpMesLabel" type="text" placeholder="Maio" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:9px;font-size:13px;outline:none" />
+              </div>
+              <div class="date-row">
+                <div class="date-field"><label>Início</label><input id="mpMesStart" type="date" /></div>
+                <div class="date-field"><label>Fim</label><input id="mpMesEnd" type="date" /></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
+            <div class="date-field" style="flex:1;min-width:180px">
+              <label>Nome RDO</label>
+              <input id="mpRdoName" type="text" placeholder="ex: COPLASA" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:9px;font-size:14px;font-weight:700;color:var(--ink);outline:none" />
+            </div>
+            <div class="date-field" style="flex:1;min-width:180px">
+              <label>Operação</label>
+              <input id="mpOperacao" type="text" placeholder="ex: Preparo de Solo" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:9px;font-size:14px;font-weight:700;color:var(--ink);outline:none" />
+            </div>
+            <div class="date-field" style="flex:1;min-width:180px">
+              <label>Classificação do Equipamento</label>
+              <select id="mpClassificacao" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:9px;font-size:14px;color:var(--ink);outline:none;background:#fff">
+                <option value="">Todos os equipamentos</option>
+                <option value="COLHEDORA">Colhedora</option>
+                <option value="TRATOR">Trator</option>
+                <option value="TRANSBORDO">Transbordo</option>
+                <option value="CAMINHAO">Caminhão</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">Metas por métrica (%)</div>
+          <div class="meta-grid">
+            <div class="meta-card">
+              <label>% Eficiência Operacional</label>
+              <div class="meta-sub-grid">
+                <div><small>P.Anterior</small><input id="metaEficAnt" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>P.Atual</small><input id="metaEficAtu" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>Mês Fech.</small><input id="metaEficMes" type="number" step="0.01" placeholder="0" /></div>
+              </div>
+            </div>
+            <div class="meta-card">
+              <label>% Produtivo</label>
+              <div class="meta-sub-grid">
+                <div><small>P.Anterior</small><input id="metaProdAnt" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>P.Atual</small><input id="metaProdAtu" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>Mês Fech.</small><input id="metaProdMes" type="number" step="0.01" placeholder="0" /></div>
+              </div>
+            </div>
+            <div class="meta-card">
+              <label>% Improdutivo</label>
+              <div class="meta-sub-grid">
+                <div><small>P.Anterior</small><input id="metaImpAnt" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>P.Atual</small><input id="metaImpAtu" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>Mês Fech.</small><input id="metaImpMes" type="number" step="0.01" placeholder="0" /></div>
+              </div>
+            </div>
+            <div class="meta-card">
+              <label>% Utilização</label>
+              <div class="meta-sub-grid">
+                <div><small>P.Anterior</small><input id="metaUtilAnt" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>P.Atual</small><input id="metaUtilAtu" type="number" step="0.01" placeholder="0" /></div>
+                <div><small>Mês Fech.</small><input id="metaUtilMes" type="number" step="0.01" placeholder="0" /></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="matrizStatus" class="notice warn">Importe pelo menos uma base CSV, configure os períodos e clique em Calcular Matriz.</div>
+          <div id="matrizResult"></div>
+        </div>
+      </section>
+    </div><!-- /tabMatriz -->
+
+  </div><!-- /app -->
+
+  <script>
+    // ─── STATE ────────────────────────────────────────────────────────────────
+    const state = {
+      bases: [
+        { name: 'Base 1', rows: null, fileName: '' },
+        { name: 'Base 2', rows: null, fileName: '' },
+        { name: 'Base 3', rows: null, fileName: '' },
+        { name: 'Base 4', rows: null, fileName: '' },
+      ],
+      rows: [],        // concatenação de todas as bases carregadas
+      lastResult: null,
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    // ─── CSV PARSER ──────────────────────────────────────────────────────────
+    function parseCSV(text) {
+      const bom = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+      const lines = bom.split(/\r?\n/).filter(l => l.trim());
+      if (!lines.length) return [];
+      const sniff = lines[0];
+      const delim = (sniff.split(';').length >= sniff.split(',').length) ? ';' : ',';
+      function parseLine(line) {
+        const fields = []; let cur = ''; let inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === delim && !inQ) { fields.push(cur.trim()); cur = ''; }
+          else { cur += ch; }
+        }
+        fields.push(cur.trim());
+        return fields;
+      }
+      const header = parseLine(lines[0]);
+      const rows = [];
+      for (let li = 1; li < lines.length; li++) {
+        rows.push(parseLine(lines[li]));
+      }
+      return { header, rows };
+    }
+
+    // Mapeia índices de coluna a partir do cabeçalho do CSV (robusto a ordem diferente).
+    // Retorna um objeto { chave: índice }. Cai para índices padrão se o cabeçalho não bater.
+    // Layout L.A (delimitador ';'):
+    // 0:Data 1:Frente 2:Equipamento(codigo) 3:Modelo 4:Classificacao_Ativ
+    // 5:CD Atividade 6:Atividade 7:Funcionario 8:Fazenda 9:Velocidade
+    // 10:Inicio 11:Fim 12:Tempo Decimal 13:Hori_Odom_Ini 14:Hori_Odom_Fim ...
+    const DEFAULT_COL_INDEX = {
+      data: 0, frente: 1, codigo_equipamento: 2, equipamento: 3, classificacao: 4,
+      codigo_operacao: 5, atividade: 6, operador: 7, fazenda: 8, velocidade_media: 9,
+      hora_inicial: 10, hora_final: 11, tempo_decimal: 12,
+      horimetro_inicial: 13, horimetro_final: 14,
+    };
+    // Aliases dos nomes que aparecem no cabeçalho L.A (normalizados sem acento/maiúsculas).
+    // Robusto a pequenas variações de nome/ordem das colunas.
+    const COL_ALIASES = {
+      data: ['data', 'dt', 'date', 'dia'],
+      frente: ['frente', 'dsc_frente', 'descricao da frente', 'frente colheita'],
+      codigo_equipamento: ['equipamento', 'codigo equipamento', 'cod equipamento', 'cod equip', 'equipamento codigo', 'frota'],
+      equipamento: ['modelo', 'descricao do equipamento', 'descricao equipamento', 'descricao modelo'],
+      classificacao: ['classificacao_ativ', 'classificacao ativ', 'classificacao', 'classificacao da atividade', 'grupo da operacao'],
+      codigo_operacao: ['cd atividade', 'codigo atividade', 'codigo_operacao', 'codigo operacao', 'cod operacao', 'cd operacao'],
+      atividade: ['atividade', 'descricao da operacao', 'descricao operacao', 'operacao'],
+      operador: ['funcionario', 'operador', 'colaborador', 'matricula'],
+      fazenda: ['fazenda', 'dsc_fazenda', 'descricao da fazenda'],
+      hora_inicial: ['inicio', 'hora inicial', 'hora ini', 'hora inicio', 'hora_inicial'],
+      hora_final: ['fim', 'hora final', 'hora fim', 'hora termino', 'hora_final'],
+      tempo_decimal: ['tempo decimal', 'tempo_decimal', 'tempo', 'horas', 'duracao'],
+    };
+    function buildColMap(header) {
+      const map = Object.assign({}, DEFAULT_COL_INDEX);
+      if (!header || !header.length) return map;
+      const normHeader = header.map(h => normText(h));
+      for (const [key, aliases] of Object.entries(COL_ALIASES)) {
+        const wanted = aliases.map(a => normText(a));
+        const idx = normHeader.findIndex(h => wanted.includes(h));
+        if (idx >= 0) map[key] = idx;
+      }
+      return map;
+    }
+
+    // ─── DATE / HORA NORMALIZATION ────────────────────────────────────────────
+    function normDate(v) {
+      if (!v) return '';
+      const s = String(v).trim().split('T')[0].split(' ')[0];
+      // DD/MM/YYYY ou DD-MM-YYYY ou DD.MM.YYYY → YYYY-MM-DD
+      let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+      if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+      // YYYY-MM-DD ou YYYY/MM/DD → YYYY-MM-DD
+      m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+      if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+      return '';
+    }
+
+    function normHora(v) {
+      if (!v) return '';
+      const s = String(v).trim();
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) {
+        const parts = s.split(':');
+        return `${parts[0].padStart(2,'0')}:${parts[1]}:${parts[2]||'00'}`;
+      }
+      return '';
+    }
+
+    // Converte número em formato brasileiro ("1.234,5" → 1234.5; "0,2" → 0.2) para Number.
+    function parseNum(v) {
+      if (v == null) return NaN;
+      let s = String(v).trim();
+      if (s === '') return NaN;
+      if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.'); // '.' milhar, ',' decimal
+      return parseFloat(s);
+    }
+
+    // Fallback de horas a partir de Inicio/Fim no formato L.A "M/D/YYYY h:mm:ss AM/PM".
+    function parseDateTimeUS(s) {
+      if (!s) return null;
+      const str = String(s).trim();
+      const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+      if (!m) { const d = new Date(str); return isNaN(d) ? null : d.getTime(); }
+      let hh = parseInt(m[4], 10);
+      const mi = parseInt(m[5], 10), ss = parseInt(m[6] || '0', 10), ap = m[7];
+      if (ap) { const isPM = /pm/i.test(ap); if (isPM && hh < 12) hh += 12; if (!isPM && hh === 12) hh = 0; }
+      return new Date(+m[3], +m[1] - 1, +m[2], hh, mi, ss).getTime();
+    }
+    function calcHorasDateTime(ini, fim) {
+      const a = parseDateTimeUS(ini), b = parseDateTimeUS(fim);
+      if (a == null || b == null) return 0;
+      const diff = (b - a) / 3600000;
+      return diff < 0 ? 0 : diff;
+    }
+
+    // Normaliza uma linha do CSV L.A para o formato interno usado nos cálculos.
+    // A data inválida (rodapé "Total", "Filtros aplicados:", linhas em branco) descarta a linha.
+    function normalizeRow(f, cm) {
+      const data = normDate(f[cm.data]);
+      if (!data) return null;  // rejeita cabeçalhos de rodapé e linhas sem data válida
+
+      const codigo_equip = String(f[cm.codigo_equipamento] || '').trim();
+
+      // Horas: usa a coluna "Tempo Decimal" (já calculada na origem; trata virada de dia, ex.: 24,0).
+      // Só recorre a Inicio/Fim quando "Tempo Decimal" estiver realmente ausente.
+      const tdRaw = String(f[cm.tempo_decimal] ?? '').trim();
+      let horas;
+      if (tdRaw !== '') {
+        horas = parseNum(tdRaw);
+      } else {
+        horas = calcHorasDateTime(f[cm.hora_inicial], f[cm.hora_final]);
+      }
+      if (!isFinite(horas) || horas < 0) horas = 0;
+
+      let classificacao = normText(f[cm.classificacao]) || 'SEM CLASSIFICACAO';
+      let atividade = normText(f[cm.atividade]) || 'SEM APONTAMENTO';
+      if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
+
+      return {
+        d: data,
+        f: String(f[cm.frente] || '').trim(),
+        e: codigo_equip,
+        m: String(f[cm.equipamento] || '').trim(),   // Modelo do equipamento
+        c: classificacao,
+        cd: String(f[cm.codigo_operacao] || '').trim(),
+        a: atividade,
+        h: Math.max(0, isFinite(horas) ? horas : 0)
+      };
+    }
+
+    function loadBase(i, file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = parseCSV(reader.result);
+          const cm = buildColMap(parsed.header);
+          // Diagnóstico: loga a detecção de colunas e amostra de data
+          const sampleRaw = parsed.rows[0];
+          if (sampleRaw) {
+            const rawDate = sampleRaw[cm.data];
+            const normD   = normDate(rawDate);
+            console.log(`[CSV Base ${i+1}] Cabeçalho detectado:`, parsed.header);
+            console.log(`[CSV Base ${i+1}] Mapa de colunas: data=${cm.data}, tempo_decimal=${cm.tempo_decimal}, classificacao=${cm.classificacao}, atividade=${cm.atividade}, cd=${cm.codigo_operacao}, modelo=${cm.equipamento}`);
+            console.log(`[CSV Base ${i+1}] Amostra data bruta: "${rawDate}" → normDate: "${normD}"`);
+            if (!normD) {
+              setStatus(`⚠️ Base ${i+1}: data bruta "${rawDate}" não reconhecida. Formatos aceitos: DD/MM/AAAA ou AAAA-MM-DD. Verifique a coluna de data no seu CSV.`, true);
+            }
+          }
+          const normalized = [];
+          for (const f of parsed.rows) {
+            const r = normalizeRow(f, cm);
+            if (r) normalized.push(r);
+          }
+          state.bases[i].rows = normalized;
+          state.bases[i].fileName = file.name;
+          if (!state.bases[i].name || /^Base \d$/.test(state.bases[i].name)) {
+            state.bases[i].name = file.name.replace(/\.csv$/i, '');
+          }
+          rebuildRows();
+          renderFiles();
+          setStatus(`Base ${i + 1} carregada: ${fmtN(normalized.length)} registros válidos. Configure os períodos e clique em Calcular.`, false);
+          maybeAutoCalc();
+        } catch (err) {
+          console.error('loadBase error:', err);
+          setStatus(`Erro ao ler o CSV da Base ${i + 1}: ${err.message || err}`, true);
+        }
+      };
+      reader.onerror = () => setStatus(`Falha ao ler o arquivo da Base ${i + 1}.`, true);
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function rebuildRows() {
+      state.rows = [];
+      for (const base of state.bases) {
+        if (base && base.rows) {
+          for (const r of base.rows) state.rows.push(r);
+        }
+      }
+      updateHeroBadge();
+    }
+
+    function updateHeroBadge() {
+      $('heroNum').textContent = fmtN(state.rows.length);
+    }
+
+    // ─── RENDER FILES GRID ────────────────────────────────────────────────────
+    function renderFiles() {
+      $('filesGrid').innerHTML = state.bases.map((b, i) => {
+        const loaded = !!b.rows;
+        const n = loaded ? b.rows.length : 0;
+        return `
+          <div class="file-card">
+            <h4>Base ${i + 1}</h4>
+            <input class="bname" data-i="${i}" type="text" value="${escapeHtml(b.name)}" placeholder="Nome da base" />
+            <label class="dropzone ${loaded ? 'loaded' : ''}" data-i="${i}" id="dz${i}">
+              ${loaded ? `&#10003; ${escapeHtml(b.fileName || 'arquivo carregado')}` : 'Clique ou arraste o CSV aqui'}
+              <input type="file" accept=".csv,text/csv" data-i="${i}" />
+            </label>
+            ${loaded
+              ? `<div class="file-stat">${fmtN(n)} registros válidos</div><div class="file-clear" data-i="${i}">remover</div>`
+              : `<div class="file-stat">nenhum arquivo</div>`}
+          </div>`;
+      }).join('');
+
+      $('filesGrid').querySelectorAll('input.bname').forEach(el => {
+        el.addEventListener('input', e => { state.bases[+e.target.dataset.i].name = e.target.value; });
+      });
+      $('filesGrid').querySelectorAll('input[type=file]').forEach(el => {
+        el.addEventListener('change', e => {
+          const f = e.target.files[0]; if (f) loadBase(+e.target.dataset.i, f);
+        });
+      });
+      $('filesGrid').querySelectorAll('.file-clear').forEach(el => {
+        el.addEventListener('click', e => {
+          const i = +e.target.dataset.i;
+          state.bases[i].rows = null; state.bases[i].fileName = '';
+          rebuildRows(); renderFiles();
+        });
+      });
+      // drag & drop
+      state.bases.forEach((_, i) => {
+        const dz = $('dz' + i); if (!dz) return;
+        ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+        ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+        dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadBase(i, f); });
+      });
+    }
+
+    // ─── UTILITY FUNCTIONS ────────────────────────────────────────────────────
+    function calcHoras(ini, fim) {
+      if (!ini || !fim) return 0;
+      const toTs = s => /^\d{1,2}:\d{2}/.test(String(s)) ? `1970-01-01T${s}` : String(s);
+      const a = new Date(toTs(ini)), b = new Date(toTs(fim));
+      if (isNaN(a) || isNaN(b)) return 0;
+      const diff = (b - a) / 3600000;
+      return diff < 0 ? diff + 24 : diff;
+    }
+
+    function normText(v) {
+      return String(v ?? '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim().toUpperCase();
+    }
+
+    function uniqueSorted(values) {
+      return [...new Set(values.map(v => String(v == null ? '' : v).trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }));
+    }
+
+    function fmtHours(v) {
+      const n = Number(v || 0);
+      return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' h';
+    }
+
+    function fmtPct(v) {
+      const n = Number(v || 0);
+      return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+    }
+
+    function fmtN(n) { return (n || 0).toLocaleString('pt-BR'); }
+
+    function toTitle(s) {
+      return String(s ?? '').toLowerCase().replace(/\b\S/g, l => l.toUpperCase());
+    }
+
+    function formatDateBr(key) {
+      if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(key)) return '-';
+      const [y, m, d] = key.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ─── FILTER HELPERS ───────────────────────────────────────────────────────
+    function collapseFilters(shouldCollapse) {
+      $('filtersPanel').classList.toggle('collapsed', shouldCollapse);
+    }
+
+    function setStatus(msg, warn = false) {
+      const box = $('statusBox');
+      box.textContent = msg;
+      box.className = 'notice ' + (warn ? 'warn' : 'ok');
+    }
+
+    function updateFilterSummary() {
+      const raw = ($('frenteFilterInput') ? $('frenteFilterInput').value : '').trim();
+      const frentes = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const txt = frentes.length ? `${frentes.length} frente(s)` : 'Todas as frentes';
+      $('filterSummary').textContent = txt + ($('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '');
+    }
+
+    function getSelectionText() {
+      const raw = ($('frenteFilterInput') ? $('frenteFilterInput').value : '').trim();
+      const frentes = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+      return frentes.length ? `${frentes.length} frente(s)` : 'Todas as frentes';
+    }
+
+    function periodComplete(prefix) {
+      return !!$(`${prefix}Start`).value && !!$(`${prefix}End`).value;
+    }
+
+    function allPeriodsComplete() {
+      return ['p1','p2','p3','p4'].every(periodComplete);
+    }
+
+    function getPeriod(prefix) {
+      return { start: $(`${prefix}Start`).value, end: $(`${prefix}End`).value };
+    }
+
+    function copyPeriod4ToAll() {
+      const s = $('p4Start').value;
+      const e = $('p4End').value;
+      if (!s || !e) {
+        setStatus('Preencha o Período 4 antes de copiar para os demais.', true);
+        return;
+      }
+      ['p1','p2','p3'].forEach(p => {
+        $(`${p}Start`).value = s;
+        $(`${p}End`).value = e;
+      });
+      maybeAutoCalc();
+    }
+
+    // ─── CALCULATION ──────────────────────────────────────────────────────────
+    function passesGlobalFilters(row, filters) {
+      if (!filters.front || filters.front.size === 0) return true;
+      return filters.front.has(String(row.f));
+    }
+
+    function isDeslocamentoProdutivo(row, deslocToggle) {
+      if (!deslocToggle) return false;
+      const cd = String(row.cd || '').trim().replace(/\.0$/, '');
+      return cd === '200' && row.a === 'DESLOCAMENTO';
+    }
+
+    function calcPeriod(rows, period, filters) {
+      const offendersNoMaintenance = Object.create(null);
+      const offendersMaintenance = Object.create(null);
+      const offNoMaintByFront = Object.create(null);
+      const offMaintByFront   = Object.create(null);
+      let total = 0;
+      let produtiva = 0;
+      let improdutivoClass = 0;
+      let indisponivel = 0;
+      let deslocamentoProdutivoHoras = 0;
+      let count = 0;
+
+      // Converte datas do período para timestamp — evita qualquer problema de comparação de strings
+      const pStart = period.start ? new Date(period.start + 'T00:00:00') : null;
+      const pEnd   = period.end   ? new Date(period.end   + 'T23:59:59') : null;
+      for (const row of rows) {
+        if (!passesGlobalFilters(row, filters)) continue;
+        if (row.d) {
+          const rowTs = new Date(row.d + 'T00:00:00');
+          if (pStart && rowTs < pStart) continue;
+          if (pEnd   && rowTs > pEnd)   continue;
+        } else { continue; }
+        const h = row.h;
+        if (!isFinite(h) || h < 0) continue;
+        const deslocProd = isDeslocamentoProdutivo(row, filters.deslocToggle);
+        const cls = deslocProd ? 'PRODUTIVA' : row.c;
+        total += h;
+        count++;
+
+        if (cls === 'PRODUTIVA') {
+          produtiva += h;
+          if (deslocProd) deslocamentoProdutivoHoras += h;
+        } else {
+          const atividade = row.a || 'SEM APONTAMENTO';
+          const atividadeNorm = atividade.replace(/\s+/g,' ').trim();
+          const frente = row.f || 'SEM FRENTE';
+          const excluirManut = ['MANUTENCAO COMPUTADOR BORDO','MANUTENCAO PILOTO/GPS','MANUTENCAO PILOTO GPS'];
+          if (cls === 'MANUTENCAO' && !excluirManut.includes(atividadeNorm)) {
+            offendersMaintenance[atividade] = (offendersMaintenance[atividade] || 0) + h;
+            if (!offMaintByFront[atividade]) offMaintByFront[atividade] = Object.create(null);
+            offMaintByFront[atividade][frente] = (offMaintByFront[atividade][frente] || 0) + 1;
+          }
+          if (cls === 'IMPRODUTIVO') {
+            offendersNoMaintenance[atividade] = (offendersNoMaintenance[atividade] || 0) + h;
+            if (!offNoMaintByFront[atividade]) offNoMaintByFront[atividade] = Object.create(null);
+            offNoMaintByFront[atividade][frente] = (offNoMaintByFront[atividade][frente] || 0) + 1;
+          }
+        }
+
+        if (cls === 'IMPRODUTIVO') improdutivoClass += h;
+        if (cls === 'CONDICAO CLIMATICA' || cls === 'MANUTENCAO' || cls === 'INDUSTRIA') indisponivel += h;
+      }
+
+      const disponivel = Math.max(0, total - indisponivel);
+      const parado = Math.max(0, total - produtiva);
+      const eficiencia = disponivel > 0 ? (produtiva / disponivel) * 100 : 0;
+      const pctProd = total > 0 ? (produtiva / total) * 100 : 0;
+      const pctImprod = total > 0 ? (improdutivoClass / total) * 100 : 0;
+      const pctDisponivel = total > 0 ? (disponivel / total) * 100 : 0;
+      const offenderNoMaintenanceList = Object.entries(offendersNoMaintenance).map(([atividade, horas]) => ({ atividade, horas })).sort((a, b) => b.horas - a.horas);
+      const offenderMaintenanceList = Object.entries(offendersMaintenance).map(([atividade, horas]) => ({ atividade, horas })).sort((a, b) => b.horas - a.horas);
+
+      return {
+        total, produtiva, improdutivoClass, indisponivel, disponivel, parado,
+        eficiencia, pctProd, pctImprod, pctDisponivel,
+        offendersNoMaintenance, offenderNoMaintenanceList,
+        offendersMaintenance, offenderMaintenanceList,
+        offNoMaintByFront, offMaintByFront,
+        deslocamentoProdutivoHoras, rows: count
+      };
+    }
+
+    function calcComparison() {
+      if (!state.rows.length) {
+        setStatus('Importe pelo menos uma base CSV para calcular.', true);
+        return;
+      }
+      if (!allPeriodsComplete()) {
+        setStatus('Preencha as datas de início e fim dos 4 períodos. Os períodos podem ser iguais.', true);
+        hideResults();
+        return;
+      }
+      const periods = ['p1','p2','p3','p4'].map(getPeriod);
+      for (let i = 0; i < periods.length; i++) {
+        if (periods[i].start > periods[i].end) {
+          setStatus(`No Período ${i + 1}, a data inicial está maior que a data final.`, true);
+          hideResults();
+          return;
+        }
+      }
+
+      const frenteInputRaw = ($('frenteFilterInput').value || '').trim();
+      const frenteList = frenteInputRaw
+        ? frenteInputRaw.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+      const filters = {
+        front: new Set(frenteList),
+        deslocToggle: $('deslocToggle').checked
+      };
+
+      const calculated = periods.map(p => calcPeriod(state.rows, p, filters));
+
+      // "Acumulado" period
+      const incluirAcumulado = $('incluirAcumulado').checked;
+      const allPeriodsCopy = [...periods];
+      const allCalcCopy = [...calculated];
+      const allLabelsCopy = ['Período 1','Período 2','Período 3','Período 4'];
+
+      if (incluirAcumulado) {
+        // Usa o menor e maior data de TODOS os dados carregados (todos os CSVs)
+        const allDates = state.rows.map(r => r.d).filter(Boolean).sort();
+        const minStart = allDates[0] || periods.map(p => p.start).filter(Boolean).sort()[0];
+        const maxEnd   = allDates[allDates.length - 1] || periods.map(p => p.end).filter(Boolean).sort().reverse()[0];
+        if (minStart && maxEnd) {
+          const calcAcum = calcPeriod(state.rows, { start: minStart, end: maxEnd }, filters);
+          allCalcCopy.push(calcAcum);
+          allPeriodsCopy.push({ start: minStart, end: maxEnd });
+          allLabelsCopy.push('Acumulado');
+        }
+      }
+
+      // Use P4 as the reference for offenders
+      const base = allCalcCopy[3] || allCalcCopy[1] || null;
+      const baseOffendersNoMaintenance = base ? base.offenderNoMaintenanceList.slice(0, 10) : [];
+      const baseOffendersMaintenance   = base ? base.offenderMaintenanceList.slice(0, 10)   : [];
+      const equipSet = new Set(state.rows.map(r => r.e).filter(Boolean));
+
+      const result = {
+        periods: allPeriodsCopy,
+        labels: allLabelsCopy,
+        calculated: allCalcCopy,
+        baseOffendersNoMaintenance,
+        baseOffendersMaintenance,
+        nEquip: equipSet.size
+      };
+
+      state.lastResult = result;
+      renderResults(result);
+      updateFilterSummary();
+    }
+
+    function maybeAutoCalc() {
+      updateFilterSummary();
+      if (state.rows.length && allPeriodsComplete()) calcComparison();
+    }
+
+    function hideResults() {
+      $('resultTable').classList.add('hidden');
+      state.lastResult = null;
+    }
+
+    // ─── RENDER RESULTS ───────────────────────────────────────────────────────
+    function renderResults(result) {
+      const selectionText = getSelectionText();
+      const n = result.nEquip || 0;
+      setStatus(`Comparação calculada — ${n} equipamento${n!==1?'s':''} no período. Filtro: ${selectionText}.`, false);
+      renderComparisonTable(result.calculated, result.baseOffendersNoMaintenance, result.baseOffendersMaintenance, result.periods, result.nEquip, result.labels);
+    }
+
+    function renderComparisonTable(calculatedAll, baseOffendersNoMaintenance, baseOffendersMaintenance, periodsAll, nEquip, labelsAll) {
+      const skipP1 = $('skipP1Toggle').checked;
+      const calculated = skipP1 ? calculatedAll.slice(1) : calculatedAll;
+      const periods    = skipP1 ? periodsAll.slice(1)    : periodsAll;
+      const labels     = skipP1 ? (labelsAll || []).slice(1) : (labelsAll || []);
+      const periodOffset = skipP1 ? 1 : 0;
+
+      const frente = ($('frenteColheita').value || '').trim();
+      const frenteHtml = frente ? `
+        <div style="margin-bottom:14px;padding:10px 16px;background:linear-gradient(135deg,#063f58,#0b7497);color:white;border-radius:14px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:12px;opacity:.8;white-space:nowrap">FRENTE DE COLHEITA</span>
+          <span style="font-size:16px;font-weight:900">${escapeHtml(frente)}</span>
+        </div>` : '';
+
+      const heads = periods.map((p, i) => {
+        const lbl = labels[i] || `Período ${i + 1 + periodOffset}`;
+        return `<th>${escapeHtml(lbl)}<br><span style="font-size:11px;font-weight:700;opacity:.86">${formatDateBr(p.start)} a ${formatDateBr(p.end)}</span></th>`;
+      }).join('');
+      const rows = [];
+      rows.push(`<tr class="metric-line"><th>% Eficiência Operacional</th>${calculated.map(p => `<td>${fmtPct(p.eficiencia)}</td>`).join('')}</tr>`);
+      rows.push(`<tr class="metric-line"><th>% Produtivo</th>${calculated.map(p => `<td>${fmtPct(p.pctProd)}</td>`).join('')}</tr>`);
+      rows.push(`<tr class="metric-line"><th>% Improdutivo</th>${calculated.map(p => `<td>${fmtPct(p.pctImprod)}</td>`).join('')}</tr>`);
+      rows.push(`<tr class="metric-line"><th>% Disponibilidade</th>${calculated.map(p => `<td>${fmtPct(p.pctDisponivel)}</td>`).join('')}</tr>`);
+
+      appendOffenderBlock(rows, calculated, baseOffendersNoMaintenance || [], 'Top 10 ofensores operacionais (Improdutivo) — ordenado pelo Período 4', 'offendersNoMaintenance');
+      appendOffenderBlock(rows, calculated, baseOffendersMaintenance   || [], 'Top 10 ofensores de manutenção — ordenado pelo Período 4',             'offendersMaintenance');
+
+      const mainHtml = frenteHtml + `
+        <table id="comparisonTable">
+          <thead><tr><th>Rendimento</th>${heads}</tr></thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>`;
+
+      // per-period offender tables (only first 4 base periods, not acumulado)
+      const basePeriods = periods.filter((_, i) => (labels[i] || '').toLowerCase() !== 'acumulado');
+      const baseCalcs   = calculated.filter((_, i) => (labels[i] || '').toLowerCase() !== 'acumulado');
+      const baseLabels  = labels.filter(l => (l || '').toLowerCase() !== 'acumulado');
+
+      const periodTablesHtml = basePeriods.map((p, i) => {
+        const calc = baseCalcs[i];
+        if (!calc) return '';
+        const lbl = baseLabels[i] || `Período ${i + 1 + periodOffset}`;
+        const offList = calc.offenderNoMaintenanceList || [];
+        if (!offList.length) return `
+          <div style="margin-top:16px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--muted);font-size:13px">
+            <strong style="color:var(--ink)">${escapeHtml(lbl)} — ${formatDateBr(p.start)} a ${formatDateBr(p.end)}</strong><br>Nenhum ofensor improdutivo neste período.
+          </div>`;
+        const totalParado = calc.parado || 0;
+        const maxHoras = offList[0].horas || 1;
+        const tRows = offList.map((off, idx) => {
+          const pct = totalParado > 0 ? (off.horas / totalParado) * 100 : 0;
+          const barW = Math.round((off.horas / maxHoras) * 100);
+          const bg = idx % 2 === 0 ? '#fff' : '#f7fbfd';
+          return `<tr style="background:${bg}">
+            <td style="text-align:center;font-weight:900;color:var(--muted);font-size:13px;width:42px;min-width:42px">${idx+1}</td>
+            <td style="text-align:left;font-weight:700;min-width:220px">${escapeHtml(toTitle(off.atividade))}</td>
+            <td style="min-width:160px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="flex:1;background:#e8f0f5;border-radius:999px;height:8px;overflow:hidden">
+                  <div style="width:${barW}%;height:100%;background:var(--primary);border-radius:999px"></div>
+                </div>
+                <span style="font-weight:900;color:var(--primary-dark);white-space:nowrap">${fmtHours(off.horas)}</span>
+              </div>
+            </td>
+            <td style="text-align:center;font-weight:900;color:var(--red);white-space:nowrap;min-width:90px">${fmtPct(pct)}</td>
+          </tr>`;
+        }).join('');
+        return `
+          <div style="margin-top:16px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff">
+            <div style="padding:12px 16px;background:linear-gradient(135deg,#063f58,#0b7497);color:white;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-weight:900;font-size:14px">${escapeHtml(lbl)}</span>
+              <span style="font-size:13px;opacity:.88">${formatDateBr(p.start)} a ${formatDateBr(p.end)}</span>
+              <span style="font-size:12px;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px">${offList.length} ofensor${offList.length > 1 ? 'es' : ''}</span>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="min-width:520px;border-collapse:separate;border-spacing:0;width:100%">
+                <thead>
+                  <tr style="background:#f0f6fa">
+                    <th style="width:42px;text-align:center;padding:10px 8px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)">#</th>
+                    <th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)">ATIVIDADE</th>
+                    <th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)">HORAS &#9660;</th>
+                    <th style="text-align:center;padding:10px 12px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)">% DO PARADO</th>
+                  </tr>
+                </thead>
+                <tbody>${tRows}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }).join('');
+
+      const equipBadge = nEquip > 0 ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><span style="background:#063f58;color:#fff;font-size:13px;font-weight:800;padding:5px 14px;border-radius:20px;letter-spacing:.3px">&#x1F69C; ${nEquip} equipamento${nEquip!==1?'s':''}</span></div>` : '';
+      $('resultTable').innerHTML = equipBadge + mainHtml + `
+        <div style="margin-top:32px;padding:0 2px">
+          <div style="font-size:17px;font-weight:900;color:var(--ink);margin-bottom:2px">Ofensores improdutivos por período</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Classificação: IMPRODUTIVO — ordenado por horas (maior → menor).</div>
+          ${periodTablesHtml}
+        </div>`;
+      $('resultTable').classList.remove('hidden');
+    }
+
+    function appendOffenderBlock(rows, calculated, baseOffenders, title, mapName) {
+      rows.push(`<tr class="section-row"><th>${title}</th>${calculated.map(() => `<td>% e horas</td>`).join('')}</tr>`);
+
+      if (!baseOffenders.length) {
+        rows.push(`<tr class="offender-line"><th>Sem ofensores</th>${calculated.map(() => `<td class="empty-hit">não houve apontamento</td>`).join('')}</tr>`);
+        return;
+      }
+      for (const off of baseOffenders) {
+        const cells = calculated.map(p => {
+          const map = p[mapName] || {};
+          const h = map[off.atividade] || 0;
+          if (h <= 0) return `<td class="empty-hit">não houve esse apontamento</td>`;
+          const pct = p.parado > 0 ? (h / p.parado) * 100 : 0;
+          return `<td>${fmtPct(pct)} — ${fmtHours(h)}</td>`;
+        }).join('');
+        rows.push(`<tr class="offender-line"><th>${escapeHtml(toTitle(off.atividade))}</th>${cells}</tr>`);
+      }
+    }
+
+    // ─── COPY / EXPORT ────────────────────────────────────────────────────────
+    function copyTableToClipboard() {
+      if (!state.lastResult) {
+        setStatus('Calcule a comparação antes de copiar.', true);
+        return;
+      }
+      const text = tableToTsv($('comparisonTable'));
+      navigator.clipboard.writeText(text).then(() => {
+        setStatus('Tabela copiada. Agora é só colar no Excel.', false);
+      }).catch(() => {
+        fallbackCopy(text);
+        setStatus('Tabela copiada. Agora é só colar no Excel.', false);
+      });
+    }
+
+    function exportCsv() {
+      if (!state.lastResult) {
+        setStatus('Calcule a comparação antes de exportar.', true);
+        return;
+      }
+      const csv = tableToTsv($('comparisonTable')).replace(/\t/g, ';');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'resultado_comparativo_4_periodos.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus('CSV exportado.', false);
+    }
+
+    function tableToTsv(table) {
+      const lines = [];
+      for (const tr of table.querySelectorAll('tr')) {
+        const cells = [...tr.children].map(td => td.textContent.trim().replace(/\s+/g, ' '));
+        lines.push(cells.join('\t'));
+      }
+      return lines.join('\n');
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+
+    // ─── TAB NAVIGATION ───────────────────────────────────────────────────────
+    function switchTab(tab) {
+      $('tabComparativo').classList.toggle('hidden', tab !== 'comparativo');
+      $('tabMatriz').classList.toggle('hidden', tab !== 'matriz');
+      $('tabBtnComparativo').classList.toggle('active', tab === 'comparativo');
+      $('tabBtnMatriz').classList.toggle('active', tab === 'matriz');
+    }
+
+    // ─── EQUIPMENT CLASSIFICATION ─────────────────────────────────────────────
+    // Classifica pelo Modelo do equipamento (layout L.A traz marca/modelo, não a categoria).
+    function classifyEquip(modelo) {
+      const t = normText(modelo || '');
+      // Colhedoras de cana (Case Austoft/A88xx, John Deere CHxxx)
+      if (t.includes('COLHEDOR') || t.includes('AUSTOFT') ||
+          /\bA88\d\d\b/.test(t) || /\bCH\d{3}\b/.test(t)) return 'COLHEDORA';
+      // Transbordo
+      if (t.includes('TRANSBORDO')) return 'TRANSBORDO';
+      // Caminhões (Scania, VW, Mercedes-Benz: Atego/Axor/Arocs)
+      if (t.includes('CAMINHAO') || t.includes('CAMINHA') || t.includes('SCANIA') ||
+          t.includes('VOLVO') || t.includes('ATEGO') || t.includes('AXOR') ||
+          t.includes('AROCS') || /\bVW\b/.test(t) || /\bMB\b/.test(t)) return 'CAMINHAO';
+      // Tratores (Case Puma / IH, Valtra) — tracionam os transbordos
+      if (t.includes('TRATOR') || t.includes('PUMA') || t.includes('VALTRA') ||
+          /\bIH\b/.test(t)) return 'TRATOR';
+      return 'OUTROS';
+    }
+
+    // ─── MATRIZ STATE ─────────────────────────────────────────────────────────
+    const MATRIZ_FIELDS = [
+      'mpAntStart','mpAntEnd','mpAtuStart','mpAtuEnd','mpMesStart','mpMesEnd','mpMesLabel',
+      'mpRdoName','mpOperacao','mpClassificacao',
+      'metaEficAnt','metaEficAtu','metaEficMes',
+      'metaProdAnt','metaProdAtu','metaProdMes',
+      'metaImpAnt','metaImpAtu','metaImpMes',
+      'metaUtilAnt','metaUtilAtu','metaUtilMes'
+    ];
+
+    function saveMatrizState() {
+      const s = {};
+      for (const id of MATRIZ_FIELDS) { const el = $(id); if (el) s[id] = el.value; }
+      localStorage.setItem('painelcsv_la_matriz_state', JSON.stringify(s));
+    }
+
+    function loadMatrizState() {
+      try {
+        const s = JSON.parse(localStorage.getItem('painelcsv_la_matriz_state') || '{}');
+        for (const [id, val] of Object.entries(s)) { const el = $(id); if (el) el.value = val; }
+      } catch (_) {}
+    }
+
+    // ─── MATRIZ CALCULATION ───────────────────────────────────────────────────
+    function calcMatriz() {
+      if (!state.rows.length) {
+        setMatrizStatus('Importe pelo menos uma base CSV primeiro.', true); return;
+      }
+      const antStart = $('mpAntStart').value, antEnd = $('mpAntEnd').value;
+      const atuStart = $('mpAtuStart').value, atuEnd = $('mpAtuEnd').value;
+      const mesStart = $('mpMesStart').value, mesEnd = $('mpMesEnd').value;
+      if (!antStart || !antEnd || !atuStart || !atuEnd || !mesStart || !mesEnd) {
+        setMatrizStatus('Preencha todas as datas dos três períodos.', true); return;
+      }
+      saveMatrizState();
+      setMatrizStatus('Calculando...', false);
+      try {
+        const periods = [
+          { start: antStart, end: antEnd },
+          { start: atuStart, end: atuEnd },
+          { start: mesStart, end: mesEnd }
+        ];
+        const frenteInputRaw = ($('frenteFilterInput').value || '').trim();
+        const frenteList = frenteInputRaw ? frenteInputRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const filters = {
+          front: new Set(frenteList),
+          deslocToggle: $('deslocToggle').checked
+        };
+        const classFiltro = $('mpClassificacao').value;
+        const rows = classFiltro ? state.rows.filter(r => classifyEquip(r.m) === classFiltro) : state.rows;
+        if (!rows.length) {
+          setMatrizStatus('Nenhum dado encontrado para os filtros selecionados.', true); return;
+        }
+        const [resAnt, resAtu, resMes] = periods.map(p => calcPeriod(rows, p, filters));
+        const metas = {
+          efic: [parseFloat($('metaEficAnt').value)||0, parseFloat($('metaEficAtu').value)||0, parseFloat($('metaEficMes').value)||0],
+          prod: [parseFloat($('metaProdAnt').value)||0, parseFloat($('metaProdAtu').value)||0, parseFloat($('metaProdMes').value)||0],
+          imp:  [parseFloat($('metaImpAnt').value)||0,  parseFloat($('metaImpAtu').value)||0,  parseFloat($('metaImpMes').value)||0],
+          util: [parseFloat($('metaUtilAnt').value)||0, parseFloat($('metaUtilAtu').value)||0, parseFloat($('metaUtilMes').value)||0],
+        };
+        renderMatriz(resAnt, resAtu, resMes, metas, periods);
+        setMatrizStatus('Matriz calculada com sucesso.', false);
+      } catch (err) {
+        console.error(err);
+        setMatrizStatus(`Erro: ${err.message || err}`, true);
+      }
+    }
+
+    function setMatrizStatus(msg, warn) {
+      const box = $('matrizStatus');
+      box.textContent = msg;
+      box.className = 'notice ' + (warn ? 'warn' : 'ok');
+    }
+
+    function renderMatriz(resAnt, resAtu, resMes, metas, periods) {
+      const rdoName  = ($('mpRdoName').value  || 'RDO').trim();
+      const operacao = ($('mpOperacao').value || 'Operação').trim();
+      const mesLabel = ($('mpMesLabel').value || 'Mês Fechado').trim();
+      const antLabel = `${formatDateBr(periods[0].start)} a ${formatDateBr(periods[0].end)}`;
+      const atuLabel = `${formatDateBr(periods[1].start)} a ${formatDateBr(periods[1].end)}`;
+      const results  = [resAnt, resAtu, resMes];
+
+      function sc(real, meta, isImprod) {
+        if (!meta) return '';
+        const ok = isImprod ? real <= meta : real >= meta;
+        return `<span class="sc ${ok ? 'g' : 'r'}"></span>`;
+      }
+
+      function varCell(ant, atu, invertGood) {
+        const delta = ant ? ((atu - ant) / Math.abs(ant)) * 100 : null;
+        if (delta === null) return '<td>—</td>';
+        const good = invertGood ? delta <= 0 : delta >= 0;
+        const sign = delta >= 0 ? '+' : '';
+        return `<td class="${good ? 'vp' : 'vn'}">${sign}${delta.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%</td>`;
+      }
+
+      const metricDefs = [
+        { label:'% Eficiência Operacional', key:'eficiencia',    mk:'efic', inv:false },
+        { label:'% Produtivo',              key:'pctProd',       mk:'prod', inv:false },
+        { label:'% Improdutivo',            key:'pctImprod',     mk:'imp',  inv:true  },
+        { label:'% Utilização',             key:'pctDisponivel', mk:'util', inv:false },
+      ];
+
+      let rows = '';
+      for (const m of metricDefs) {
+        const vals = results.map(r => r[m.key]);
+        const mt   = metas[m.mk];
+        rows += `<tr class="mtz-metric">
+          <th>${escapeHtml(m.label)}</th>
+          <td></td>
+          <td>${fmtPct(mt[0])}</td>
+          <td>${fmtPct(vals[0])} ${sc(vals[0], mt[0], m.inv)}</td>
+          <td>${fmtPct(mt[1])}</td>
+          <td>${fmtPct(vals[1])} ${sc(vals[1], mt[1], m.inv)}</td>
+          ${varCell(vals[0], vals[1], m.inv)}
+          <td>${fmtPct(mt[2])}</td>
+          <td>${fmtPct(vals[2])} ${sc(vals[2], mt[2], m.inv)}</td>
+        </tr>`;
+      }
+
+      function offRow(off, rank, mapName) {
+        function cell(r) {
+          const h = (r[mapName] || {})[off.atividade] || 0;
+          if (!h) return `<td style="color:var(--muted);font-style:italic">—</td>`;
+          const pct = r.parado > 0 ? (h / r.parado) * 100 : 0;
+          return `<td>${fmtPct(pct)} / ${fmtHours(h)}</td>`;
+        }
+        const hAnt = (resAnt[mapName] || {})[off.atividade] || 0;
+        const hAtu = (resAtu[mapName] || {})[off.atividade] || 0;
+        const pAnt = resAnt.parado > 0 ? (hAnt / resAnt.parado) * 100 : 0;
+        const pAtu = resAtu.parado > 0 ? (hAtu / resAtu.parado) * 100 : 0;
+        const delta = hAnt > 0 ? ((pAtu - pAnt) / Math.abs(pAnt)) * 100 : null;
+        const deltaHtml = delta !== null
+          ? `<span class="${delta <= 0 ? 'vp' : 'vn'}">${delta >= 0 ? '+' : ''}${delta.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%</span>`
+          : '—';
+        return `<tr class="mtz-offrow">
+          <th>${rank}º (%/h) – ${escapeHtml(operacao)}</th>
+          <td style="text-align:left;font-weight:700">${escapeHtml(toTitle(off.atividade))}</td>
+          <td></td>${cell(resAnt)}<td></td>${cell(resAtu)}
+          <td>${deltaHtml}</td>
+          <td></td>${cell(resMes)}
+        </tr>`;
+      }
+
+      const top5Gen  = resAtu.offenderNoMaintenanceList.slice(0, 5);
+      const top5Mant = resAtu.offenderMaintenanceList.slice(0, 5);
+
+      let offGenRows = top5Gen.map((off, i) => offRow(off, i + 1, 'offendersNoMaintenance')).join('');
+      if (!offGenRows) offGenRows = `<tr><td colspan="9" style="color:var(--muted);font-style:italic;padding:10px">Nenhum ofensor operacional encontrado.</td></tr>`;
+
+      let offMantRows = top5Mant.map((off, i) => offRow(off, i + 1, 'offendersMaintenance')).join('');
+      if (!offMantRows) offMantRows = `<tr><td colspan="9" style="color:var(--muted);font-style:italic;padding:10px">Nenhum ofensor de manutenção encontrado.</td></tr>`;
+
+      $('matrizResult').innerHTML = `
+      <div class="matriz-wrap">
+        <table class="mtz">
+          <thead>
+            <tr>
+              <th rowspan="2" style="min-width:200px;background:#063f58">${escapeHtml(rdoName)}</th>
+              <th rowspan="2" style="min-width:150px;background:#063f58">Ofensor</th>
+              <th colspan="2" style="background:#0b5d7c">Período Anterior<br><span style="font-size:10px;font-weight:600;opacity:.9">${antLabel}</span></th>
+              <th colspan="2" style="background:#0b5d7c">Período Atual<br><span style="font-size:10px;font-weight:600;opacity:.9">${atuLabel}</span></th>
+              <th style="background:#083d5a">Variação<br>Período</th>
+              <th colspan="2" style="background:#0b5d7c">Mês Fechado<br><span style="font-size:10px;font-weight:600;opacity:.9">${escapeHtml(mesLabel)}</span></th>
+            </tr>
+            <tr>
+              <th style="background:#1a6a8c">Meta</th><th style="background:#1a6a8c">Realizado</th>
+              <th style="background:#1a6a8c">Meta</th><th style="background:#1a6a8c">Realizado</th>
+              <th style="background:#0e4f6e">%_&#916;</th>
+              <th style="background:#1a6a8c">Meta</th><th style="background:#1a6a8c">Realizado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="mtz-sec"><td colspan="9">${escapeHtml(operacao)}</td></tr>
+            <tr class="mtz-subsec"><td colspan="9">${escapeHtml(operacao.toUpperCase())}</td></tr>
+            ${rows}
+            <tr class="mtz-offsec"><td colspan="9">Ofensor Operação</td></tr>
+            ${offGenRows}
+            <tr class="mtz-offsec"><td colspan="9">Ofensor Manutenção</td></tr>
+            ${offMantRows}
+          </tbody>
+        </table>
+      </div>`;
+    }
+
+    // ─── EXPORT POWERPOINT ────────────────────────────────────────────────────
+    async function exportPptx() {
+      if (!state.lastResult) {
+        setStatus('Calcule a comparação antes de exportar.', true);
+        return;
+      }
+      setStatus('Gerando PowerPoint...', false);
+
+      const R = state.lastResult;
+      const skipP1     = $('skipP1Toggle').checked;
+      const calculated = skipP1 ? R.calculated.slice(1) : R.calculated;
+      const periods    = skipP1 ? R.periods.slice(1)    : R.periods;
+      const labels     = skipP1 ? (R.labels || []).slice(1) : (R.labels || []);
+      const periodOffset = skipP1 ? 1 : 0;
+      const frente     = ($('frenteColheita').value || '').trim();
+
+      const C = { navy: '063F58', teal: '0B7497', white: 'FFFFFF', ink: '132033',
+                  muted: '667085', line: 'D8E1EA', soft: 'E7F4F8', red: 'B42318',
+                  green: '087443', yellow: 'FFF7CC', lightbg: 'F7FBFD' };
+
+      const makeShadow = () => ({ type:'outer', color:'000000', blur:8, offset:2, angle:45, opacity:0.10 });
+
+      const pres = new PptxGenJS();
+      pres.layout  = 'LAYOUT_WIDE';
+      pres.title   = 'Painel Comparativo de Eficiência Operacional';
+      pres.author  = 'Axiagro';
+
+      const W = 13.3, H = 7.5;
+      const pLabels = periods.map((p, i) => {
+        const lbl = labels[i] || `P${i+1+periodOffset}`;
+        return `${lbl}\n${formatDateBr(p.start)} a ${formatDateBr(p.end)}`;
+      });
+
+      const s1 = pres.addSlide();
+      s1.background = { color: 'F0F5F8' };
+
+      s1.addShape(pres.shapes.RECTANGLE, { x:0, y:0, w:W, h:0.70, fill:{ color:C.navy }, line:{ color:C.navy } });
+      const tituloTxt = 'Eficiência Operacional — Visão Comparativa';
+      s1.addText(tituloTxt, { x:0.35, y:0, w:8.5, h:0.70, fontSize:17, bold:true, color:C.white, valign:'middle', margin:0 });
+      if (frente) s1.addText(frente, { x:0, y:0, w:W-0.35, h:0.70, fontSize:12, bold:true, color:'A8D8EA', valign:'middle', align:'right', margin:10 });
+
+      const nPeriods = Math.min(calculated.length, 5);
+      const pCardW = (W - 0.7) / nPeriods;
+      const pCardH = 0.55;
+      const pCardY = 0.80;
+      periods.slice(0, nPeriods).forEach((p, i) => {
+        const x = 0.35 + i * (pCardW + ((W - 0.7 - pCardW * nPeriods) / Math.max(nPeriods - 1, 1)));
+        const isRef = i === nPeriods - 1;
+        const lbl = labels[i] || `P${i+1+periodOffset}`;
+        s1.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y:pCardY, w:pCardW, h:pCardH,
+          fill:{ color: isRef ? C.teal : C.white }, rectRadius:0.08,
+          shadow: makeShadow(), line:{ color: isRef ? C.teal : C.line, pt:1 } });
+        s1.addText([
+          { text:`${lbl}  `, options:{ bold:true, fontSize:10, color: isRef ? C.white : C.navy } },
+          { text:`${formatDateBr(p.start)} a ${formatDateBr(p.end)}`, options:{ fontSize:9, color: isRef ? 'D0EEF8' : C.muted } }
+        ], { x:x+0.08, y:pCardY, w:pCardW-0.16, h:pCardH, valign:'middle', margin:0 });
+      });
+
+      const mDefs = [
+        { label:'% Eficiência Op.', key:'eficiencia',    color:C.green },
+        { label:'% Produtivo',      key:'pctProd',       color:C.navy  },
+        { label:'% Improdutivo',    key:'pctImprod',     color:C.red   },
+        { label:'% Disponibilidade',key:'pctDisponivel', color:C.teal  },
+      ];
+      const mCardW = (W - 0.7) / 4;
+      const mCardH = 1.05;
+      const mCardY = pCardY + pCardH + 0.10;
+      mDefs.forEach((m, mi) => {
+        const x = 0.35 + mi * (mCardW + 0.07);
+        s1.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y:mCardY, w:mCardW, h:mCardH,
+          fill:{ color:C.white }, rectRadius:0.10, shadow:makeShadow(), line:{ color:C.line, pt:1 } });
+        s1.addText(m.label, { x:x+0.1, y:mCardY+0.06, w:mCardW-0.2, h:0.20,
+          fontSize:8, bold:true, color:C.muted, align:'center', margin:0 });
+
+        const vals = calculated.slice(0, nPeriods).map(p => p[m.key]);
+        const valRuns = vals.map((v, i) => [
+          { text: `${labels[i] || 'P'+(i+1+periodOffset)} `, options:{ fontSize:7, color:C.muted } },
+          { text: fmtPct(v), options:{ fontSize:10, bold:true, color: m.color } },
+          { text: i < vals.length-1 ? '   ' : '', options:{ fontSize:8 } }
+        ]).flat();
+        s1.addText(valRuns, { x:x+0.06, y:mCardY+0.27, w:mCardW-0.12, h:0.26, align:'center', margin:0, valign:'middle' });
+
+        s1.addShape(pres.shapes.LINE, { x:x+0.15, y:mCardY+0.58, w:mCardW-0.30, h:0,
+          line:{ color:C.line, pt:0.5 } });
+
+        const baseVals = vals.filter((_, i) => (labels[i] || '').toLowerCase() !== 'acumulado');
+        const diffRuns = baseVals.slice(1).map((_, i) => {
+          const lbl2 = `P${i+2+periodOffset}-P${i+1+periodOffset}`;
+          const diff = baseVals[i+1] - baseVals[i];
+          const isPositiveBetter = m.key !== 'pctImprod';
+          const isGood = isPositiveBetter ? diff >= 0 : diff <= 0;
+          const sign  = diff >= 0 ? '+' : '';
+          const clr   = Math.abs(diff) < 0.01 ? C.muted : (isGood ? C.green : C.red);
+          return [
+            { text: lbl2, options:{ fontSize:7, color:C.muted } },
+            { text: ` ${sign}${diff.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}pp`, options:{ fontSize:8, bold:true, color:clr } },
+            { text: i<baseVals.length-2 ? '   ' : '', options:{ fontSize:7, color:C.muted } }
+          ];
+        }).flat();
+        if (diffRuns.length) s1.addText(diffRuns, { x:x+0.06, y:mCardY+0.62, w:mCardW-0.12, h:0.38, align:'center', margin:0, valign:'middle' });
+      });
+
+      const offY    = mCardY + mCardH + 0.12;
+      const offH    = H - offY - 0.18;
+      const colW    = (W - 0.85) / 2;
+      const col1X   = 0.35;
+      const col2X   = col1X + colW + 0.15;
+
+      function drawOffenderBlock(slide, x, y, w, h, title, offenders, mapName, headerColor, byFrontMap) {
+        slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h:0.32,
+          fill:{ color: headerColor }, rectRadius:0.07, line:{ color: headerColor } });
+        slide.addText(title, { x:x+0.1, y, w:w-0.2, h:0.32,
+          fontSize:9, bold:true, color:C.white, valign:'middle', margin:0 });
+
+        const thY = y + 0.34;
+        const thH = 0.25;
+        const frenteColW = 1.60;
+        const atividadeColW = 2.20;
+        // only show up to 4 base periods, not acumulado
+        const basePeriods2 = periods.filter((_, i) => (labels[i] || '').toLowerCase() !== 'acumulado');
+        const baseCalcs2   = calculated.filter((_, i) => (labels[i] || '').toLowerCase() !== 'acumulado');
+        const baseLabels2  = labels.filter(l => (l || '').toLowerCase() !== 'acumulado');
+        const pCols = baseLabels2.map((l, i) => l || `P${i+1+periodOffset}`);
+        const heads  = ['#', 'Atividade', ...pCols, 'Frente c/ mais recorrência'];
+        const pColW  = (w - 0.26 - atividadeColW - frenteColW) / basePeriods2.length;
+        const colWs  = [0.26, atividadeColW, ...basePeriods2.map(() => pColW), frenteColW];
+        let cx = x;
+        heads.forEach((h2, hi) => {
+          const isFrente = hi === heads.length - 1;
+          slide.addShape(pres.shapes.RECTANGLE, { x:cx, y:thY, w:colWs[hi], h:thH,
+            fill:{ color: isFrente ? '0B6E4F' : 'E0EBF0' }, line:{ color:C.line, pt:0.3 } });
+          slide.addText(h2, { x:cx, y:thY, w:colWs[hi], h:thH,
+            fontSize:7, bold:true, color: isFrente ? C.white : C.ink,
+            align:'center', valign:'middle', margin:0 });
+          cx += colWs[hi];
+        });
+
+        const rowH   = (h - 0.34 - thH - 0.05) / Math.max(offenders.length, 1);
+        const safeRH = Math.min(rowH, 0.42);
+        const lastPeriodIdx = baseCalcs2.length - 1;
+        const lastColIdx    = heads.length - 2;
+        const frenteColIdx  = heads.length - 1;
+
+        const alertBg  = ['FFECEC', 'FFF4E5', 'FFFDE7'];
+        const alertP4Bg = ['FFCDD2', 'FFE0B2', 'FFF9C4'];
+        const alertFnt = ['C62828', 'E65100', '827717'];
+        const badgeColors = [C.red, 'E65100', 'F9A825'];
+
+        offenders.forEach((off, idx) => {
+          const ry = thY + thH + idx * safeRH;
+          if (ry + safeRH > y + h + 0.05) return;
+          const isAlert = idx < 3;
+          const bg = isAlert ? alertBg[idx] : (idx % 2 === 0 ? C.white : C.lightbg);
+          let cx2 = x;
+          const mapLast = baseCalcs2[lastPeriodIdx][mapName] || {};
+          const hLast   = mapLast[off.atividade] || 0;
+
+          const fmap     = (byFrontMap || {})[off.atividade] || {};
+          const fEntries = Object.entries(fmap).sort((a,b)=>b[1]-a[1]);
+          const totalOcc = fEntries.reduce((s,[,c])=>s+c, 0);
+          const topF     = fEntries[0];
+          const frenteVal = topF
+            ? `${toTitle(topF[0])}\n${topF[1]}x — ${totalOcc>0?((topF[1]/totalOcc)*100).toFixed(1):0}%`
+            : '—';
+
+          const cols = [String(idx+1), toTitle(off.atividade),
+            ...baseCalcs2.map(p => {
+              const map = p[mapName] || {};
+              const hh  = map[off.atividade] || 0;
+              const pct = p.parado > 0 ? (hh/p.parado)*100 : 0;
+              return hh > 0 ? `${pct.toFixed(1)}%\n${hh.toFixed(1)}h` : '—';
+            }),
+            frenteVal
+          ];
+
+          cols.forEach((val, ci) => {
+            const isLast   = ci === lastColIdx;
+            const isFrente = ci === frenteColIdx;
+            const isNum    = ci === 0;
+            const cellBg   = isLast && isAlert ? alertP4Bg[idx]
+              : isLast && hLast > 0 ? 'DBEEF8'
+              : isFrente && topF ? 'D4EFDF'
+              : isNum ? bg
+              : bg;
+
+            slide.addShape(pres.shapes.RECTANGLE, { x:cx2, y:ry, w:colWs[ci], h:safeRH,
+              fill:{ color:cellBg }, line:{ color: isAlert ? 'FFD0B0' : C.line, pt:0.3 } });
+
+            const txtColor = isLast && isAlert ? alertFnt[idx]
+              : isLast && hLast > 0 ? C.teal
+              : isFrente && topF ? '0B6E4F'
+              : isAlert && ci === 1 ? alertFnt[idx]
+              : C.ink;
+
+            if (isNum && isAlert) {
+              slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+                x: cx2+0.03, y: ry+safeRH*0.18, w: colWs[ci]-0.06, h: safeRH*0.64,
+                fill:{ color: badgeColors[idx] }, rectRadius:0.05, line:{ color: badgeColors[idx] }
+              });
+              slide.addText(String(idx+1), { x:cx2+0.03, y:ry+safeRH*0.18, w:colWs[ci]-0.06, h:safeRH*0.64,
+                fontSize:8, bold:true, color:C.white, align:'center', valign:'middle', margin:0 });
+            } else {
+              slide.addText(val, { x:cx2+0.02, y:ry, w:colWs[ci]-0.04, h:safeRH,
+                fontSize: ci===1 ? 7.5 : 7, bold: ci<=1 || isLast || isFrente,
+                color: txtColor,
+                align: ci===1 ? 'left' : 'center', valign:'middle', margin:0 });
+            }
+            cx2 += colWs[ci];
+          });
+        });
+        if (!offenders.length) {
+          slide.addText('Nenhum ofensor encontrado.', { x, y:thY+thH, w, h:0.5,
+            fontSize:10, color:C.muted, align:'center', valign:'middle', margin:0 });
+        }
+      }
+
+      const offNoMaint = (R.baseOffendersNoMaintenance || []).slice(0,10);
+      const offMaint   = (R.baseOffendersMaintenance   || []).slice(0,10);
+      const lastCalcFront = calculated[calculated.length - 1];
+
+      drawOffenderBlock(s1, col1X, offY, colW, offH,
+        'Top 10 Ofensores Operacionais (Improdutivo) — ordenado P4',
+        offNoMaint, 'offendersNoMaintenance', C.navy, lastCalcFront.offNoMaintByFront);
+
+      drawOffenderBlock(s1, col2X, offY, colW, offH,
+        'Top 10 Manutenção — ordenado P4',
+        offMaint, 'offendersMaintenance', '6B4C9A', lastCalcFront.offMaintByFront);
+
+      const fname = (frente ? frente.replace(/[^a-z0-9]/gi,'_') : 'Painel') + '_Eficiencia.pptx';
+      await pres.writeFile({ fileName: fname });
+      setStatus('PowerPoint gerado e baixado com sucesso!', false);
+    }
+
+    // ─── INIT ─────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      renderFiles();
+
+      if ($('frenteFilterInput')) $('frenteFilterInput').addEventListener('input', () => updateFilterSummary());
+      $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
+      $('skipP1Toggle').addEventListener('change', () => { if (state.lastResult) calcComparison(); });
+      $('incluirAcumulado').addEventListener('change', () => { if (state.lastResult) calcComparison(); });
+      $('calcBtn').addEventListener('click', calcComparison);
+      $('copyTableBtn').addEventListener('click', copyTableToClipboard);
+      $('exportCsvBtn').addEventListener('click', exportCsv);
+      $('exportPptxBtn').addEventListener('click', exportPptx);
+      $('copyP4Btn').addEventListener('click', copyPeriod4ToAll);
+      $('tabBtnComparativo').addEventListener('click', () => switchTab('comparativo'));
+      $('tabBtnMatriz').addEventListener('click', () => switchTab('matriz'));
+      $('calcMatrizBtn').addEventListener('click', calcMatriz);
+
+      MATRIZ_FIELDS.forEach(id => { const el = $(id); if (el) el.addEventListener('change', saveMatrizState); });
+      loadMatrizState();
+
+      $('saveFiltersBtn').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        updateFilterSummary();
+        collapseFilters(true);
+        maybeAutoCalc();
+      });
+      $('filtersHeader').addEventListener('click', (ev) => {
+        if (ev.target.closest('button')) return;
+        collapseFilters($('filtersPanel').classList.contains('collapsed') ? false : true);
+      });
+      ['p1','p2','p3','p4'].forEach(p => {
+        $(`${p}Start`).addEventListener('change', maybeAutoCalc);
+        $(`${p}End`).addEventListener('change', maybeAutoCalc);
+      });
+      updateFilterSummary();
+    });
+  </script>
+</body>
+</html>
