@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel Comparativo de Eficiência Operacional - 4 Períodos</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <style>
+    :root {
+      --bg: #eef3f7;
+      --card: #ffffff;
+      --ink: #132033;
+      --muted: #667085;
+      --line: #d8e1ea;
+      --primary: #0b5d7c;
+      --primary-dark: #06445d;
+      --primary-soft: #e7f4f8;
+      --green: #087443;
+      --red: #b42318;
+      --orange: #b54708;
+      --shadow: 0 14px 34px rgba(16, 24, 40, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #e6f1f5 0%, var(--bg) 260px);
+      color: var(--ink);
+    }
+
+    .app {
+      max-width: 1760px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: stretch;
+      gap: 16px;
+      padding: 18px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #063f58, #0b7497);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 25px;
+      letter-spacing: -0.3px;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 1050px;
+      line-height: 1.4;
+      color: rgba(255,255,255,.84);
+      font-size: 14px;
+    }
+
+    .hero-actions {
+      min-width: 330px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .file-btn {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: 14px;
+      background: #ffffff;
+      color: var(--primary-dark);
+      font-weight: 800;
+      cursor: pointer;
+      border: 0;
+      box-shadow: 0 8px 20px rgba(0,0,0,.15);
+    }
+
+    .file-btn input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .file-meta {
+      font-size: 12px;
+      color: rgba(255,255,255,.82);
+      text-align: center;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      margin-top: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .filter-head {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .chevron {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 99px;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      font-weight: 900;
+      transition: transform .18s ease;
+    }
+
+    .collapsed .chevron { transform: rotate(-90deg); }
+
+    .panel-body { padding: 14px 16px 16px; }
+    .collapsed .panel-body { display: none; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .action-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .action-btn:hover { background: #f5f8fb; }
+    .action-btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .action-btn.primary:hover { background: var(--primary-dark); }
+
+    .filters-horizontal {
+      display: grid;
+      grid-template-columns: 240px minmax(260px, 1fr) minmax(260px, 1fr) minmax(260px, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .control-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      padding: 12px;
+      min-height: 100%;
+    }
+
+    .control-card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: #344054;
+    }
+
+    .label {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      color: #475467;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+
+    .hint {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .segmented button {
+      border: 0;
+      background: #fff;
+      padding: 10px;
+      font-weight: 900;
+      cursor: pointer;
+      color: #344054;
+    }
+
+    .segmented button.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .switch-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 11px;
+      border-radius: 14px;
+      background: #f7fbfd;
+      border: 1px solid #d7eef5;
+      cursor: pointer;
+    }
+
+    .switch-row input {
+      width: 19px;
+      height: 19px;
+      margin-top: 1px;
+      accent-color: var(--primary);
+    }
+
+    .switch-title { font-size: 13px; font-weight: 900; }
+    .switch-desc { margin-top: 3px; font-size: 12px; color: var(--muted); line-height: 1.35; }
+
+    .multi-box {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .multi-toolbar {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 6px;
+      padding: 8px;
+      border-bottom: 1px solid var(--line);
+      background: #f7f9fb;
+    }
+
+    .multi-toolbar input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 9px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .tiny-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 7px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .multi-list {
+      max-height: 185px;
+      overflow: auto;
+      padding: 6px 8px;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 4px;
+      font-size: 13px;
+      cursor: pointer;
+      border-bottom: 1px dashed #eef2f5;
+    }
+
+    .check-row:last-child { border-bottom: 0; }
+    .check-row input { accent-color: var(--primary); }
+    .check-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .hidden { display: none !important; }
+
+    .periods-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(190px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .period-card {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(180deg, #ffffff, #fbfdff);
+    }
+
+    .period-card.reference {
+      border-color: #9bd7e9;
+      background: linear-gradient(180deg, #f1fbff, #ffffff);
+    }
+
+    .period-card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .badge-ref {
+      font-size: 10px;
+      text-transform: uppercase;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: white;
+      letter-spacing: .4px;
+    }
+
+    .date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .date-field label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 800;
+    }
+
+    .date-field input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 9px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .notice {
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #344054;
+      margin-bottom: 12px;
+    }
+
+    .notice.ok {
+      background: #ecfdf3;
+      border-color: #abefc6;
+      color: #067647;
+    }
+
+    .notice.warn {
+      background: #fffaeb;
+      border-color: #fedf89;
+      color: #93370d;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .metric-card {
+      padding: 13px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+
+    .metric-value {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+
+    .metric-sub {
+      margin-top: 5px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .comparison-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 980px;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 11px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: #fff;
+      min-width: 285px;
+    }
+
+    thead th {
+      background: var(--primary-dark);
+      color: white;
+      font-weight: 900;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    thead th:first-child {
+      background: var(--primary-dark);
+      z-index: 4;
+    }
+
+    tr:last-child th, tr:last-child td { border-bottom: 0; }
+    th:last-child, td:last-child { border-right: 0; }
+
+    .metric-line th {
+      font-weight: 900;
+      color: #233044;
+    }
+
+    .metric-line td {
+      font-weight: 900;
+      font-size: 15px;
+    }
+
+    .section-row th, .section-row td {
+      background: #fff7cc !important;
+      color: #3b3200;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .section-row th:first-child { text-align: left; }
+    .offender-line th { font-weight: 900; }
+    .empty-hit { color: var(--muted); font-style: italic; font-weight: 600; }
+
+    .footer-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .loading-bar {
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,.25);
+      border: 1px solid rgba(255,255,255,.35);
+    }
+
+    .loading-bar span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: #fff;
+      transition: width .1s linear;
+    }
+
+    @media (max-width: 1250px) {
+      .filters-horizontal { grid-template-columns: 1fr 1fr; }
+      .periods-grid { grid-template-columns: 1fr 1fr; }
+      .cards { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      .app { padding: 10px; }
+      .hero { flex-direction: column; }
+      .hero-actions { min-width: unset; }
+      .filters-horizontal, .periods-grid, .cards { grid-template-columns: 1fr; }
+      .date-row { grid-template-columns: 1fr; }
+      .panel-head { flex-direction: column; align-items: stretch; }
+      .top-actions { justify-content: stretch; }
+      .action-btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div>
+        <h1>Painel Comparativo de Eficiência Operacional</h1>
+        <p>
+          Importe a base Excel, configure filtros gerais e compare 4 períodos. O 2º período é a referência para definir os 5 ofensores.
+          A opção avançada transforma apenas o CD Atividade 200 / DESLOCAMENTO em produtiva quando ativada.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <label class="file-btn">
+          Importar base Excel
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+        </label>
+        <div id="fileMeta" class="file-meta">Nenhuma base importada.</div>
+        <div class="loading-bar"><span id="loadingBar"></span></div>
+      </div>
+    </header>
+
+    <section id="filtersPanel" class="panel">
+      <div id="filtersHeader" class="panel-head filter-head" title="Clique para abrir ou recolher os filtros">
+        <h2 class="panel-title"><span class="chevron">▾</span> Filtros gerais</h2>
+        <div class="top-actions">
+          <span id="filterSummary" class="chip">Configure os filtros</span>
+          <button id="copyP4Btn" class="action-btn" type="button">Copiar Período 4 para todos</button>
+          <button id="saveFiltersBtn" class="action-btn primary" type="button">Salvar filtros e recolher</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="filters-horizontal">
+          <div class="control-card">
+            <h3>Tipo de análise</h3>
+            <span class="label">Filtro principal</span>
+            <div class="segmented" role="group">
+              <button id="modeEquip" class="active" type="button">Frota</button>
+              <button id="modeFront" type="button">Frente</button>
+            </div>
+
+            <span class="label">Configuração avançada</span>
+            <label class="switch-row">
+              <input id="deslocToggle" type="checkbox" />
+              <div>
+                <div class="switch-title">DESLOCAMENTO 200 produtivo</div>
+                <div class="switch-desc">Recalcula produtivo, parado, eficiência e ofensores.</div>
+              </div>
+            </label>
+            <label class="switch-row" style="margin-top:8px">
+              <input id="skipP1Toggle" type="checkbox" />
+              <div>
+                <div class="switch-title">Desconsiderar Período 1</div>
+                <div class="switch-desc">Oculta o P1 da tabela, ofensores e PowerPoint.</div>
+              </div>
+            </label>
+            <span class="hint">O filtro escolhido será aplicado nos 4 períodos.</span>
+          </div>
+
+          <div id="equipGroup" class="control-card">
+            <h3>Frota / Equipamento</h3>
+            <span class="label">Coluna Equipamento</span>
+            <div id="equipBox" class="multi-box"></div>
+          </div>
+
+          <div id="frontGroup" class="control-card hidden">
+            <h3>Frente</h3>
+            <span class="label">Coluna Frente</span>
+            <div id="frontBox" class="multi-box"></div>
+          </div>
+
+          <div id="modelGroup" class="control-card hidden">
+            <h3>Modelo</h3>
+            <span class="label">Modelo da frente</span>
+            <div id="modelBox" class="multi-box"></div>
+            <span class="hint">Se nenhum modelo for marcado, considera todos os modelos das frentes selecionadas.</span>
+          </div>
+        </div>
+
+        <div class="periods-grid">
+          <div class="period-card">
+            <h3>Período 1</h3>
+            <div class="date-row">
+              <div class="date-field"><label>Início</label><input id="p1Start" type="date" /></div>
+              <div class="date-field"><label>Fim</label><input id="p1End" type="date" /></div>
+            </div>
+          </div>
+          <div class="period-card reference">
+            <h3>Período 2 <span class="badge-ref">Referência</span></h3>
+            <div class="date-row">
+              <div class="date-field"><label>Início</label><input id="p2Start" type="date" /></div>
+              <div class="date-field"><label>Fim</label><input id="p2End" type="date" /></div>
+            </div>
+          </div>
+          <div class="period-card">
+            <h3>Período 3</h3>
+            <div class="date-row">
+              <div class="date-field"><label>Início</label><input id="p3Start" type="date" /></div>
+              <div class="date-field"><label>Fim</label><input id="p3End" type="date" /></div>
+            </div>
+          </div>
+          <div class="period-card">
+            <h3>Período 4</h3>
+            <div class="date-row">
+              <div class="date-field"><label>Início</label><input id="p4Start" type="date" /></div>
+              <div class="date-field"><label>Fim</label><input id="p4End" type="date" /></div>
+            </div>
+          </div>
+        </div>
+        <div class="footer-note">
+          Preencha os 4 períodos para calcular. Os períodos podem ser iguais. O Período 2 define os 5 ofensores que serão comparados contra os períodos 1, 3 e 4.
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Resultado comparativo</h2>
+        <div class="top-actions">
+          <button id="calcBtn" class="action-btn primary" type="button">Calcular comparação</button>
+          <button id="copyTableBtn" class="action-btn" type="button">Copiar tabela</button>
+          <button id="exportCsvBtn" class="action-btn" type="button">Exportar CSV</button>
+          <button id="exportPptxBtn" class="action-btn" type="button">⬇ Exportar PowerPoint</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <label style="font-size:13px;font-weight:800;color:#475467;white-space:nowrap">Frente de Colheita:</label>
+          <input id="frenteColheita" type="text" placeholder="Ex: Frente 01 — Fazenda São João"
+            style="flex:1;max-width:420px;border:1px solid var(--line);border-radius:11px;padding:9px 12px;font-size:14px;font-weight:700;color:var(--ink);outline:none" />
+        </div>
+        <div id="statusBox" class="notice warn">Importe a base Excel para iniciar.</div>
+        <div id="resultTable" class="comparison-wrap hidden"></div>
+        <div class="footer-note">
+          Regras: Horas disponíveis = horas totais - (CONDICAO CLIMATICA + MANUTENCAO + INDUSTRIA). Eficiência operacional = horas produtivas / horas disponíveis. Parado = horas totais - horas produtivas. O percentual dos ofensores é calculado sobre o Parado de cada período.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const state = {
+      rowsLoaded: false,
+      rowCount: 0,
+      mode: 'equip',
+      selectedEquip: new Set(),
+      selectedFront: new Set(),
+      selectedModel: new Set(),
+      allEquip: [],
+      allFront: [],
+      allModel: [],
+      minDate: null,
+      maxDate: null,
+      lastResult: null,
+      fileName: '',
+      worker: null,
+      pending: new Map(),
+      requestId: 1,
+      modelRequestSeq: 0,
+      calcSeq: 0
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      $('fileInput').addEventListener('change', importFile);
+      $('modeEquip').addEventListener('click', () => setMode('equip'));
+      $('modeFront').addEventListener('click', () => setMode('front'));
+      $('deslocToggle').addEventListener('change', () => maybeAutoCalc());
+      $('skipP1Toggle').addEventListener('change', () => maybeAutoCalc());
+      $('calcBtn').addEventListener('click', calcComparison);
+      $('copyTableBtn').addEventListener('click', copyTableToClipboard);
+      $('exportCsvBtn').addEventListener('click', exportCsv);
+      $('exportPptxBtn').addEventListener('click', exportPptx);
+      $('copyP4Btn').addEventListener('click', copyPeriod4ToAll);
+      $('saveFiltersBtn').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        updateFilterSummary();
+        collapseFilters(true);
+        maybeAutoCalc();
+      });
+      $('filtersHeader').addEventListener('click', (ev) => {
+        if (ev.target.closest('button')) return;
+        collapseFilters($('filtersPanel').classList.contains('collapsed') ? false : true);
+      });
+      ['p1','p2','p3','p4'].forEach(p => {
+        $(`${p}Start`).addEventListener('change', maybeAutoCalc);
+        $(`${p}End`).addEventListener('change', maybeAutoCalc);
+      });
+      updateFilterSummary();
+    });
+
+    function collapseFilters(shouldCollapse) {
+      $('filtersPanel').classList.toggle('collapsed', shouldCollapse);
+    }
+
+    function setStatus(msg, warn = false) {
+      const box = $('statusBox');
+      box.textContent = msg;
+      box.className = 'notice ' + (warn ? 'warn' : 'ok');
+    }
+
+    function setProgress(pct) {
+      $('loadingBar').style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    }
+
+    function createDataWorker() {
+      if (state.worker) {
+        try { state.worker.terminate(); } catch (_) {}
+        state.worker = null;
+      }
+
+      const workerSource = '(' + function () {
+        self.importScripts('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+
+        let rows = [];
+        let minDate = null;
+        let maxDate = null;
+
+        self.onmessage = async function (ev) {
+          const msg = ev.data || {};
+          const id = msg.id;
+          try {
+            if (msg.type === 'parseFile') {
+              const result = await parseFile(msg.payload || {});
+              self.postMessage({ id, type: 'done', payload: result });
+            } else if (msg.type === 'getModels') {
+              const result = getModels(msg.payload || {});
+              self.postMessage({ id, type: 'done', payload: result });
+            } else if (msg.type === 'calculate') {
+              const result = calculate(msg.payload || {});
+              self.postMessage({ id, type: 'done', payload: result });
+            } else {
+              throw new Error('Comando desconhecido no processamento.');
+            }
+          } catch (err) {
+            self.postMessage({ id, type: 'error', message: err && err.message ? err.message : String(err) });
+          }
+        };
+
+        async function parseFile(payload) {
+          rows = [];
+          minDate = null;
+          maxDate = null;
+          const ext = String(payload.ext || '').toLowerCase();
+          postProgress(5, 'Abrindo arquivo em segundo plano...');
+          if (ext === 'csv') {
+            await parseCsvText(payload.text || '');
+          } else {
+            await parseExcelBuffer(payload.buffer);
+          }
+          postProgress(94, 'Preparando filtros...');
+          const summary = buildSummary();
+          postProgress(100, 'Base importada.');
+          return summary;
+        }
+
+        async function parseExcelBuffer(buffer) {
+          postProgress(8, 'Lendo planilha em segundo plano...');
+          const wb = XLSX.read(buffer, { type: 'array', cellDates: false, cellNF: false, cellText: false, dense: true });
+          const sheetName = wb.SheetNames[0];
+          const ws = wb.Sheets[sheetName];
+          await parseWorksheet(ws);
+        }
+
+        async function parseWorksheet(ws) {
+          if (!ws || !ws['!ref']) throw new Error('A planilha está vazia.');
+          const range = XLSX.utils.decode_range(ws['!ref']);
+          const headerRow = findHeaderRow(ws, range);
+          if (headerRow == null) throw new Error('Não localizei a linha de cabeçalho.');
+
+          const colMap = mapColumns(ws, range, headerRow);
+          const required = ['data','frente','equipamento','modelo','classificacao','cdAtividade','atividade','tempo'];
+          const missing = required.filter(k => colMap[k] == null);
+          if (missing.length) throw new Error('Colunas não encontradas: ' + missing.join(', '));
+
+          const totalRows = Math.max(1, range.e.r - headerRow);
+          for (let R = headerRow + 1; R <= range.e.r; R++) {
+            const rawDate = cellValue(ws, R, colMap.data);
+            const dateKey = excelDateToKey(rawDate);
+            if (!dateKey) continue;
+
+            const horas = parseHours(cellValue(ws, R, colMap.tempo));
+            if (!isFinite(horas) || horas < 0) continue;
+
+            const classificacao = normText(cellValue(ws, R, colMap.classificacao));
+            let atividade = normText(cellValue(ws, R, colMap.atividade));
+            if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
+            if (!classificacao || !atividade) continue;
+
+            rows.push({
+              d: dateKey,
+              f: cleanValue(cellValue(ws, R, colMap.frente)),
+              e: cleanValue(cellValue(ws, R, colMap.equipamento)),
+              m: cleanValue(cellValue(ws, R, colMap.modelo)),
+              c: classificacao,
+              cd: cleanValue(cellValue(ws, R, colMap.cdAtividade)),
+              a: atividade,
+              h: horas
+            });
+
+            if (!minDate || dateKey < minDate) minDate = dateKey;
+            if (!maxDate || dateKey > maxDate) maxDate = dateKey;
+
+            if (R % 12000 === 0) {
+              const pct = 12 + ((R - headerRow) / totalRows) * 78;
+              postProgress(pct, 'Lendo linhas da planilha em segundo plano...');
+              await sleep(0);
+            }
+          }
+        }
+
+        async function parseCsvText(text) {
+          const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+          if (!lines.length) return;
+          const sep = detectSep(lines[0]);
+          const headers = splitCsvLine(lines[0], sep).map(h => ({ raw: h, compact: compactHeader(h) }));
+          const find = (names) => {
+            const compactNames = names.map(n => compactHeader(n));
+            const idx = headers.findIndex(x => compactNames.includes(x.compact));
+            if (idx >= 0) return idx;
+            return headers.findIndex(x => compactNames.some(n => x.compact.includes(n) || n.includes(x.compact)));
+          };
+          const col = {
+            data: find(['DATA']), frente: find(['FRENTE']), equipamento: find(['EQUIPAMENTO', 'FROTA']), modelo: find(['MODELO']),
+            classificacao: find(['CLASSIFICACAO_ATIV', 'CLASSIFICACAO ATIV', 'CLASSIFICACAO']), cdAtividade: find(['CD ATIVIDADE', 'CD_ATIVIDADE', 'COD ATIVIDADE']),
+            atividade: find(['ATIVIDADE']), tempo: find(['TEMPO DECIMAL', 'TEMPO_DECIMAL', 'HORAS', 'HORA DECIMAL'])
+          };
+          const missing = Object.entries(col).filter(([,v]) => v < 0).map(([k]) => k);
+          if (missing.length) throw new Error('Colunas não encontradas no CSV: ' + missing.join(', '));
+
+          for (let i = 1; i < lines.length; i++) {
+            const parts = splitCsvLine(lines[i], sep);
+            const dateKey = excelDateToKey(parts[col.data]);
+            if (!dateKey) continue;
+            const horas = parseHours(parts[col.tempo]);
+            if (!isFinite(horas) || horas < 0) continue;
+            const classificacao = normText(parts[col.classificacao]);
+            let atividade = normText(parts[col.atividade]);
+            if (atividade === 'INDETERMINADO') atividade = 'SEM APONTAMENTO';
+            if (!classificacao || !atividade) continue;
+            rows.push({
+              d: dateKey,
+              f: cleanValue(parts[col.frente]),
+              e: cleanValue(parts[col.equipamento]),
+              m: cleanValue(parts[col.modelo]),
+              c: classificacao,
+              cd: cleanValue(parts[col.cdAtividade]),
+              a: atividade,
+              h: horas
+            });
+            if (!minDate || dateKey < minDate) minDate = dateKey;
+            if (!maxDate || dateKey > maxDate) maxDate = dateKey;
+            if (i % 16000 === 0) {
+              postProgress(8 + (i / lines.length) * 84, 'Lendo linhas do CSV em segundo plano...');
+              await sleep(0);
+            }
+          }
+        }
+
+        function buildSummary() {
+          const equip = new Set();
+          const front = new Set();
+          const model = new Set();
+          for (const r of rows) {
+            if (r.e) equip.add(r.e);
+            if (r.f) front.add(r.f);
+            if (r.m) model.add(r.m);
+          }
+          return {
+            rowCount: rows.length,
+            minDate,
+            maxDate,
+            allEquip: uniqueSorted([...equip]),
+            allFront: uniqueSorted([...front]),
+            allModel: uniqueSorted([...model])
+          };
+        }
+
+        function getModels(payload) {
+          const fronts = new Set((payload.fronts || []).map(String));
+          const out = new Set();
+          for (const r of rows) {
+            if (fronts.size && !fronts.has(String(r.f))) continue;
+            if (r.m) out.add(r.m);
+          }
+          return { allModel: uniqueSorted([...out]) };
+        }
+
+        function calculate(payload) {
+          const periods = payload.periods || [];
+          const filters = payload.filters || {};
+          const calculated = periods.map(p => calcPeriod(p, filters));
+          // Base pelo Período 4 (índice 3), top 10
+          const base = calculated[3] || calculated[1] || null;
+          const baseOffendersNoMaintenance = base ? base.offenderNoMaintenanceList.slice(0, 10) : [];
+          const baseOffendersMaintenance   = base ? base.offenderMaintenanceList.slice(0, 10)   : [];
+          return { periods, labels: ['Período 1','Período 2','Período 3','Período 4'], calculated, baseOffendersNoMaintenance, baseOffendersMaintenance };
+        }
+
+        function calcPeriod(period, filters) {
+          const offendersNoMaintenance = Object.create(null);
+          const offendersMaintenance = Object.create(null);
+          // { atividade: { frente: contagem } }
+          const offNoMaintByFront = Object.create(null);
+          const offMaintByFront   = Object.create(null);
+          let total = 0;
+          let produtiva = 0;
+          let improdutivoClass = 0;
+          let indisponivel = 0;
+          let deslocamentoProdutivoHoras = 0;
+          let count = 0;
+
+          for (const row of rows) {
+            if (!passesGlobalFilters(row, filters)) continue;
+            if (row.d < period.start || row.d > period.end) continue;
+            const h = row.h;
+            if (!isFinite(h) || h <= 0) continue;
+            const deslocProd = isDeslocamentoProdutivo(row, filters.deslocToggle);
+            const cls = deslocProd ? 'PRODUTIVA' : row.c;
+            total += h;
+            count++;
+
+            if (cls === 'PRODUTIVA') {
+              produtiva += h;
+              if (deslocProd) deslocamentoProdutivoHoras += h;
+            } else {
+              const atividade = row.a || 'SEM APONTAMENTO';
+              const atividadeNorm = atividade.replace(/\s+/g,' ').trim();
+              const frente = row.f || 'SEM FRENTE';
+              const excluirManut = ['MANUTENCAO COMPUTADOR BORDO','MANUTENCAO PILOTO/GPS','MANUTENCAO PILOTO GPS','EM MANUTENCAO PREVENTIVA'];
+              if (cls === 'MANUTENCAO' && !excluirManut.includes(atividadeNorm) && !atividadeNorm.includes('PREVENTIVA')) {
+                offendersMaintenance[atividade] = (offendersMaintenance[atividade] || 0) + h;
+                if (!offMaintByFront[atividade]) offMaintByFront[atividade] = Object.create(null);
+                offMaintByFront[atividade][frente] = (offMaintByFront[atividade][frente] || 0) + 1;
+              }
+              if (cls === 'IMPRODUTIVO') {
+                offendersNoMaintenance[atividade] = (offendersNoMaintenance[atividade] || 0) + h;
+                if (!offNoMaintByFront[atividade]) offNoMaintByFront[atividade] = Object.create(null);
+                offNoMaintByFront[atividade][frente] = (offNoMaintByFront[atividade][frente] || 0) + 1;
+              }
+            }
+
+            if (cls === 'IMPRODUTIVO') improdutivoClass += h;
+            if (cls === 'CONDICAO CLIMATICA' || cls === 'MANUTENCAO' || cls === 'INDUSTRIA') indisponivel += h;
+          }
+
+          const disponivel = Math.max(0, total - indisponivel);
+          const parado = Math.max(0, total - produtiva);
+          const eficiencia = disponivel > 0 ? (produtiva / disponivel) * 100 : 0;
+          const pctProd = total > 0 ? (produtiva / total) * 100 : 0;
+          const pctImprod = total > 0 ? (improdutivoClass / total) * 100 : 0;
+          const pctDisponivel = total > 0 ? (disponivel / total) * 100 : 0;
+          const offenderNoMaintenanceList = objectEntries(offendersNoMaintenance).map(([atividade, horas]) => ({ atividade, horas })).sort((a, b) => b.horas - a.horas);
+          const offenderMaintenanceList = objectEntries(offendersMaintenance).map(([atividade, horas]) => ({ atividade, horas })).sort((a, b) => b.horas - a.horas);
+
+          return {
+            total, produtiva, improdutivoClass, indisponivel, disponivel, parado,
+            eficiencia, pctProd, pctImprod, pctDisponivel,
+            offendersNoMaintenance, offenderNoMaintenanceList,
+            offendersMaintenance, offenderMaintenanceList,
+            offNoMaintByFront, offMaintByFront,
+            deslocamentoProdutivoHoras, rows: count
+          };
+        }
+
+        function objectEntries(obj) {
+          return Object.keys(obj).map(k => [k, obj[k]]);
+        }
+
+        function passesGlobalFilters(row, filters) {
+          const mode = filters.mode || 'equip';
+          const equip = new Set((filters.equip || []).map(String));
+          const front = new Set((filters.front || []).map(String));
+          const model = new Set((filters.model || []).map(String));
+          if (mode === 'equip') {
+            return equip.size === 0 || equip.has(String(row.e));
+          }
+          if (front.size > 0 && !front.has(String(row.f))) return false;
+          if (model.size > 0 && !model.has(String(row.m))) return false;
+          return true;
+        }
+
+        function isDeslocamentoProdutivo(row, deslocToggle) {
+          if (!deslocToggle) return false;
+          const cd = String(row.cd || '').trim().replace(/\.0$/, '');
+          return cd === '200' && row.a === 'DESLOCAMENTO';
+        }
+
+        function findHeaderRow(ws, range) {
+          const maxScan = Math.min(range.e.r, range.s.r + 20);
+          for (let R = range.s.r; R <= maxScan; R++) {
+            const headers = [];
+            for (let C = range.s.c; C <= range.e.c; C++) {
+              headers.push(normHeader(cellValue(ws, R, C)));
+            }
+            const joined = headers.join('|');
+            if (joined.includes('DATA') && (joined.includes('TEMPO DECIMAL') || joined.includes('TEMPODECIMAL')) && joined.includes('ATIVIDADE')) return R;
+          }
+          return null;
+        }
+
+        function mapColumns(ws, range, headerRow) {
+          const map = {};
+          const headers = [];
+          for (let C = range.s.c; C <= range.e.c; C++) {
+            headers.push({ C, compact: compactHeader(cellValue(ws, headerRow, C)) });
+          }
+          const find = (names) => {
+            const compactNames = names.map(n => compactHeader(n));
+            const exact = headers.find(x => compactNames.includes(x.compact));
+            if (exact) return exact.C;
+            const partial = headers.find(x => compactNames.some(n => x.compact.includes(n) || n.includes(x.compact)));
+            return partial ? partial.C : null;
+          };
+          map.data = find(['DATA']);
+          map.frente = find(['FRENTE']);
+          map.equipamento = find(['EQUIPAMENTO', 'FROTA']);
+          map.modelo = find(['MODELO']);
+          map.classificacao = find(['CLASSIFICACAO_ATIV', 'CLASSIFICACAO ATIV', 'CLASSIFICACAO']);
+          map.cdAtividade = find(['CD ATIVIDADE', 'CD_ATIVIDADE', 'COD ATIVIDADE']);
+          map.atividade = find(['ATIVIDADE']);
+          map.tempo = find(['TEMPO DECIMAL', 'TEMPO_DECIMAL', 'HORAS', 'HORA DECIMAL']);
+          return map;
+        }
+
+        function cellValue(ws, r, c) {
+          if (Array.isArray(ws)) {
+            const row = ws[r];
+            const cell = row && row[c];
+            return cell ? cell.v : '';
+          }
+          const addr = XLSX.utils.encode_cell({ r, c });
+          const cell = ws[addr];
+          return cell ? cell.v : '';
+        }
+
+        function detectSep(headerLine) {
+          const candidates = [';', ',', '\t'];
+          return candidates.sort((a,b) => headerLine.split(b).length - headerLine.split(a).length)[0];
+        }
+
+        function splitCsvLine(line, sep) {
+          const out = [];
+          let cur = '', q = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              if (q && line[i+1] === '"') { cur += '"'; i++; }
+              else q = !q;
+            } else if (ch === sep && !q) {
+              out.push(cur); cur = '';
+            } else cur += ch;
+          }
+          out.push(cur);
+          return out;
+        }
+
+        function cleanValue(v) {
+          if (v == null) return '';
+          if (typeof v === 'number' && Number.isInteger(v)) return String(v);
+          return String(v).trim();
+        }
+
+        function normHeader(v) {
+          return String(v == null ? '' : v)
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[_\-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim().toUpperCase();
+        }
+
+        function compactHeader(v) {
+          return normHeader(v).replace(/[^A-Z0-9]/g, '');
+        }
+
+        function normText(v) {
+          return String(v == null ? '' : v)
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim().toUpperCase();
+        }
+
+        function excelDateToKey(v) {
+          if (v == null || v === '') return '';
+          if (v instanceof Date && !isNaN(v)) return datePartsToKey(v.getFullYear(), v.getMonth() + 1, v.getDate());
+          if (typeof v === 'number' && isFinite(v)) {
+            const parsed = XLSX.SSF.parse_date_code(v);
+            if (!parsed) return '';
+            return datePartsToKey(parsed.y, parsed.m, parsed.d);
+          }
+          let s = String(v).trim();
+          if (!s) return '';
+          s = s.split(' ')[0];
+          let m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+          if (m) return datePartsToKey(+m[1], +m[2], +m[3]);
+          m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+          if (m) {
+            let y = +m[3];
+            if (y < 100) y += 2000;
+            return datePartsToKey(y, +m[2], +m[1]);
+          }
+          const d = new Date(s);
+          if (!isNaN(d)) return datePartsToKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+          return '';
+        }
+
+        function datePartsToKey(y, m, d) {
+          if (!y || !m || !d) return '';
+          return String(y).padStart(4,'0') + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        }
+
+        function parseHours(v) {
+          if (v == null || v === '') return NaN;
+          if (typeof v === 'number') return v;
+          let s = String(v).trim();
+          if (!s) return NaN;
+          const dayMatch = s.match(/^(\d+)d\s*(\d{1,2}):(\d{2})(?::(\d{2}))?$/i);
+          if (dayMatch) return (+dayMatch[1]) * 24 + (+dayMatch[2]) + (+dayMatch[3]) / 60 + (+(dayMatch[4] || 0)) / 3600;
+          if (/^\d{1,3}:\d{2}(:\d{2})?$/.test(s)) {
+            const parts = s.split(':').map(Number);
+            return parts[0] + parts[1] / 60 + (parts[2] || 0) / 3600;
+          }
+          if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+          else s = s.replace(/,/g, '');
+          const n = Number(s);
+          return isFinite(n) ? n : NaN;
+        }
+
+        function uniqueSorted(values) {
+          return [...new Set(values.map(v => String(v == null ? '' : v).trim()).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }));
+        }
+
+        function postProgress(pct, msg) {
+          self.postMessage({ type: 'progress', pct, msg });
+        }
+
+        function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+      }.toString() + ')();';
+
+      const blob = new Blob([workerSource], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(blob);
+      const worker = new Worker(workerUrl);
+      worker._url = workerUrl;
+      worker.onmessage = (ev) => {
+        const data = ev.data || {};
+        if (data.type === 'progress') {
+          setProgress(data.pct || 0);
+          if (data.msg) setStatus(data.msg, false);
+          return;
+        }
+        const pending = state.pending.get(data.id);
+        if (!pending) return;
+        state.pending.delete(data.id);
+        if (data.type === 'error') pending.reject(new Error(data.message || 'Erro no processamento em segundo plano.'));
+        else pending.resolve(data.payload);
+      };
+      worker.onerror = (err) => {
+        const error = new Error(err.message || 'Erro no processamento em segundo plano.');
+        for (const pending of state.pending.values()) pending.reject(error);
+        state.pending.clear();
+      };
+      state.worker = worker;
+    }
+
+    function requestWorker(type, payload = {}, transfer = []) {
+      if (!state.worker) createDataWorker();
+      const id = state.requestId++;
+      return new Promise((resolve, reject) => {
+        state.pending.set(id, { resolve, reject });
+        state.worker.postMessage({ id, type, payload }, transfer);
+      });
+    }
+
+    async function importFile(ev) {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      state.fileName = file.name;
+      state.rowsLoaded = false;
+      state.rowCount = 0;
+      state.lastResult = null;
+      state.selectedEquip.clear();
+      state.selectedFront.clear();
+      state.selectedModel.clear();
+      hideResults();
+      createDataWorker();
+      setProgress(2);
+      setStatus('Lendo arquivo em segundo plano. Aguarde finalizar antes de clicar em calcular...', false);
+      $('fileMeta').textContent = `${file.name} — ${(file.size / 1024 / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`;
+
+      try {
+        const ext = file.name.split('.').pop().toLowerCase();
+        let result;
+        if (ext === 'csv') {
+          const text = await file.text();
+          result = await requestWorker('parseFile', { ext, text });
+        } else {
+          const buffer = await file.arrayBuffer();
+          result = await requestWorker('parseFile', { ext, buffer }, [buffer]);
+        }
+
+        if (!result || !result.rowCount) {
+          setStatus('Não encontrei linhas válidas. Verifique se a base possui Data, Equipamento, Frente, Modelo, Classificacao_Ativ, CD Atividade, Atividade e Tempo Decimal.', true);
+          setProgress(0);
+          return;
+        }
+
+        state.rowsLoaded = true;
+        state.rowCount = result.rowCount;
+        state.minDate = result.minDate;
+        state.maxDate = result.maxDate;
+        state.allEquip = result.allEquip || [];
+        state.allFront = result.allFront || [];
+        state.allModel = result.allModel || [];
+        buildFilters();
+        setDefaultPeriods();
+        updateFilterSummary();
+        setProgress(100);
+        setTimeout(() => setProgress(0), 1100);
+        setStatus(`Base importada com ${state.rowCount.toLocaleString('pt-BR')} linhas válidas. Período da base: ${formatDateBr(state.minDate)} a ${formatDateBr(state.maxDate)}.`, false);
+        collapseFilters(false);
+      } catch (err) {
+        console.error(err);
+        setStatus(`Erro ao importar a base: ${err.message || err}`, true);
+        setProgress(0);
+      }
+    }
+
+    function buildFilters() {
+      createMultiBox('equipBox', state.allEquip, state.selectedEquip, () => { updateFilterSummary(); maybeAutoCalc(); });
+      createMultiBox('frontBox', state.allFront, state.selectedFront, () => { refreshModelFilter(); updateFilterSummary(); maybeAutoCalc(); });
+      refreshModelFilter();
+    }
+
+    async function refreshModelFilter() {
+      if (!state.rowsLoaded) {
+        createMultiBox('modelBox', state.allModel, state.selectedModel, () => { updateFilterSummary(); maybeAutoCalc(); });
+        return;
+      }
+      const seq = ++state.modelRequestSeq;
+      try {
+        const result = await requestWorker('getModels', { fronts: [...state.selectedFront] });
+        if (seq !== state.modelRequestSeq) return;
+        state.allModel = result.allModel || [];
+        for (const m of [...state.selectedModel]) {
+          if (!state.allModel.includes(m)) state.selectedModel.delete(m);
+        }
+        createMultiBox('modelBox', state.allModel, state.selectedModel, () => { updateFilterSummary(); maybeAutoCalc(); });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function createMultiBox(id, values, selectedSet, onChange) {
+      const box = $(id);
+      if (!box) return;
+      const searchId = `${id}_search`;
+      const listId = `${id}_list`;
+      box.innerHTML = `
+        <div class="multi-toolbar">
+          <input id="${searchId}" placeholder="Buscar..." />
+          <button class="tiny-btn" data-action="all" type="button">Todos</button>
+          <button class="tiny-btn" data-action="clear" type="button">Limpar</button>
+        </div>
+        <div id="${listId}" class="multi-list"></div>
+      `;
+      const search = $(searchId);
+      const list = $(listId);
+      const render = () => {
+        const term = normText(search.value);
+        const visibleAll = values.filter(v => !term || normText(v).includes(term));
+        const visible = visibleAll.slice(0, 500);
+        if (!visible.length) {
+          list.innerHTML = `<div class="hint">Nenhum item encontrado.</div>`;
+          return;
+        }
+        const more = visibleAll.length > visible.length ? `<div class="hint">Mostrando 500 de ${visibleAll.length.toLocaleString('pt-BR')}. Use a busca para refinar.</div>` : '';
+        list.innerHTML = visible.map(v => {
+          const safe = escapeHtml(v);
+          const checked = selectedSet.has(String(v)) ? 'checked' : '';
+          return `<label class="check-row" title="${safe}"><input type="checkbox" value="${safe}" ${checked} /><span>${safe}</span></label>`;
+        }).join('') + more;
+      };
+      search.addEventListener('input', render);
+      box.querySelector('[data-action="all"]').addEventListener('click', () => {
+        selectedSet.clear(); values.forEach(v => selectedSet.add(String(v)));
+        render(); onChange && onChange();
+      });
+      box.querySelector('[data-action="clear"]').addEventListener('click', () => {
+        selectedSet.clear(); render(); onChange && onChange();
+      });
+      list.addEventListener('change', (ev) => {
+        if (ev.target && ev.target.matches('input[type="checkbox"]')) {
+          if (ev.target.checked) selectedSet.add(ev.target.value);
+          else selectedSet.delete(ev.target.value);
+          onChange && onChange();
+        }
+      });
+      render();
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      $('modeEquip').classList.toggle('active', mode === 'equip');
+      $('modeFront').classList.toggle('active', mode === 'front');
+      $('equipGroup').classList.toggle('hidden', mode !== 'equip');
+      $('frontGroup').classList.toggle('hidden', mode !== 'front');
+      $('modelGroup').classList.toggle('hidden', mode !== 'front');
+      updateFilterSummary();
+      maybeAutoCalc();
+    }
+
+    function setDefaultPeriods() {
+      if (!state.minDate || !state.maxDate) return;
+      ['p1','p2','p3','p4'].forEach(p => {
+        $(`${p}Start`).value = state.minDate;
+        $(`${p}End`).value = state.maxDate;
+      });
+    }
+
+    function copyPeriod4ToAll() {
+      const s = $('p4Start').value;
+      const e = $('p4End').value;
+      if (!s || !e) {
+        setStatus('Preencha o Período 4 antes de copiar para os demais.', true);
+        return;
+      }
+      ['p1','p2','p3'].forEach(p => {
+        $(`${p}Start`).value = s;
+        $(`${p}End`).value = e;
+      });
+      maybeAutoCalc();
+    }
+
+    function updateFilterSummary() {
+      $('filterSummary').textContent = getSelectionText() + ( $('deslocToggle').checked ? ' / Deslocamento 200 produtivo' : '' );
+    }
+
+    function getSelectionText() {
+      if (state.mode === 'equip') {
+        return state.selectedEquip.size ? `${state.selectedEquip.size} frota(s)` : 'Todas as frotas';
+      }
+      const f = state.selectedFront.size ? `${state.selectedFront.size} frente(s)` : 'Todas as frentes';
+      const m = state.selectedModel.size ? `${state.selectedModel.size} modelo(s)` : 'Todos os modelos';
+      return `${f} / ${m}`;
+    }
+
+    function periodComplete(prefix) {
+      return !!$(`${prefix}Start`).value && !!$(`${prefix}End`).value;
+    }
+
+    function allPeriodsComplete() {
+      return ['p1','p2','p3','p4'].every(periodComplete);
+    }
+
+    function getPeriod(prefix) {
+      return { start: $(`${prefix}Start`).value, end: $(`${prefix}End`).value };
+    }
+
+    async function calcComparison() {
+      if (!state.rowsLoaded) {
+        setStatus('Importe uma base Excel antes de calcular.', true);
+        return;
+      }
+      if (!allPeriodsComplete()) {
+        setStatus('Preencha as datas de início e fim dos 4 períodos. Os períodos podem ser iguais.', true);
+        hideResults();
+        return;
+      }
+      const periods = ['p1','p2','p3','p4'].map(getPeriod);
+      for (let i = 0; i < periods.length; i++) {
+        if (periods[i].start > periods[i].end) {
+          setStatus(`No Período ${i + 1}, a data inicial está maior que a data final.`, true);
+          hideResults();
+          return;
+        }
+      }
+      const seq = ++state.calcSeq;
+      setStatus('Calculando comparação em segundo plano...', false);
+      setProgress(18);
+      try {
+        const result = await requestWorker('calculate', {
+          periods,
+          filters: {
+            mode: state.mode,
+            equip: [...state.selectedEquip],
+            front: [...state.selectedFront],
+            model: [...state.selectedModel],
+            deslocToggle: $('deslocToggle').checked
+          }
+        });
+        if (seq !== state.calcSeq) return;
+        state.lastResult = result;
+        renderResults(result);
+        updateFilterSummary();
+        setProgress(100);
+        setTimeout(() => setProgress(0), 700);
+      } catch (err) {
+        console.error(err);
+        setStatus(`Erro ao calcular: ${err.message || err}`, true);
+        setProgress(0);
+      }
+    }
+
+    function maybeAutoCalc() {
+      updateFilterSummary();
+      if (state.rowsLoaded && allPeriodsComplete() && state.lastResult) calcComparison();
+    }
+
+    function hideResults() {
+      $('resultTable').classList.add('hidden');
+      state.lastResult = null;
+    }
+
+    function renderResults(result) {
+      const selectionText = getSelectionText();
+      setStatus(`Comparação calculada. Filtro aplicado: ${selectionText}. Base dos ofensores: Período 2. Apenas ofensores improdutivos exibidos.`, false);
+      renderComparisonTable(result.calculated, result.baseOffendersNoMaintenance, result.baseOffendersMaintenance, result.periods);
+    }
+
+    function renderComparisonTable(calculatedAll, baseOffendersNoMaintenance, baseOffendersMaintenance, periodsAll) {
+      const skipP1 = $('skipP1Toggle').checked;
+      const calculated = skipP1 ? calculatedAll.slice(1) : calculatedAll;
+      const periods    = skipP1 ? periodsAll.slice(1)    : periodsAll;
+      const periodOffset = skipP1 ? 1 : 0; // para numerar corretamente P2, P3, P4
+
+      const frente = ($('frenteColheita').value || '').trim();
+      const frenteHtml = frente ? `
+        <div style="margin-bottom:14px;padding:10px 16px;background:linear-gradient(135deg,#063f58,#0b7497);color:white;border-radius:14px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:12px;opacity:.8;white-space:nowrap">FRENTE DE COLHEITA</span>
+          <span style="font-size:16px;font-weight:900">${escapeHtml(frente)}</span>
+        </div>` : '';
+
+      const heads = periods.map((p, i) => `<th>Período ${i + 1 + periodOffset}<br><span style="font-size:11px;font-weight:700;opacity:.86">${formatDateBr(p.start)} a ${formatDateBr(p.end)}</span></th>`).join('');
+      const rows = [];
+      rows.push(`<tr class="metric-line"><th>% Eficiência Operacional</th>${calculated.map(p => `<td>${fmtPct(p.eficiencia)}</td>`).join('')}</tr>`);
+      rows.push(`<tr class="metric-line"><th>% Produtivo</th>${calculated.map(p => `<td>${fmtPct(p.pctProd)}</td>`).join('')}</tr>`);
+      rows.push(`<tr class="metric-line"><th>% Improdutivo</th>${calculated.map(p => `<td>${fmtPct(p.pctImprod)}</td>`).join('')}</tr>`);
+      rows.push(`<tr class="metric-line"><th>% Disponibilidade</th>${calculated.map(p => `<td>${fmtPct(p.pctDisponivel)}</td>`).join('')}</tr>`);
+
+      appendOffenderBlock(rows, calculated, baseOffendersNoMaintenance || [], 'Top 10 ofensores operacionais (Improdutivo) — ordenado pelo Período 4', 'offendersNoMaintenance');
+      appendOffenderBlock(rows, calculated, baseOffendersMaintenance   || [], 'Top 10 ofensores de manutenção — ordenado pelo Período 4',             'offendersMaintenance');
+
+      const mainHtml = frenteHtml + `
+        <table id="comparisonTable">
+          <thead><tr><th>Rendimento</th>${heads}</tr></thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>`;
+
+      // Tabela por período: todos os ofensores improdutivos, ordenados por horas
+      const periodTablesHtml = periods.map((p, i) => {
+        const calc = calculated[i];
+        if (!calc) return '';
+        const offList = calc.offenderNoMaintenanceList || [];
+        if (!offList.length) return `
+          <div style="margin-top:16px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--muted);font-size:13px">
+            <strong style="color:var(--ink)">Período ${i+1} — ${formatDateBr(p.start)} a ${formatDateBr(p.end)}</strong><br>Nenhum ofensor improdutivo neste período.
+          </div>`;
+        const totalParado = calc.parado || 0;
+        const maxHoras = offList[0].horas || 1;
+        const tRows = offList.map((off, idx) => {
+          const pct = totalParado > 0 ? (off.horas / totalParado) * 100 : 0;
+          const barW = Math.round((off.horas / maxHoras) * 100);
+          const bg = idx % 2 === 0 ? '#fff' : '#f7fbfd';
+          return `<tr style="background:${bg}">
+            <td style="text-align:center;font-weight:900;color:var(--muted);font-size:13px;width:42px;min-width:42px">${idx+1}</td>
+            <td style="text-align:left;font-weight:700;min-width:220px">${escapeHtml(toTitle(off.atividade))}</td>
+            <td style="min-width:160px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="flex:1;background:#e8f0f5;border-radius:999px;height:8px;overflow:hidden">
+                  <div style="width:${barW}%;height:100%;background:var(--primary);border-radius:999px"></div>
+                </div>
+                <span style="font-weight:900;color:var(--primary-dark);white-space:nowrap">${fmtHours(off.horas)}</span>
+              </div>
+            </td>
+            <td style="text-align:center;font-weight:900;color:var(--red);white-space:nowrap;min-width:90px">${fmtPct(pct)}</td>
+          </tr>`;
+        }).join('');
+        return `
+          <div style="margin-top:16px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff">
+            <div style="padding:12px 16px;background:linear-gradient(135deg,#063f58,#0b7497);color:white;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-weight:900;font-size:14px">Período ${i+1}</span>
+              <span style="font-size:13px;opacity:.88">${formatDateBr(p.start)} a ${formatDateBr(p.end)}</span>
+              <span style="font-size:12px;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px">${offList.length} ofensor${offList.length > 1 ? 'es' : ''}</span>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="min-width:520px;border-collapse:separate;border-spacing:0;width:100%">
+                <thead>
+                  <tr style="background:#f0f6fa">
+                    <th style="width:42px;text-align:center;padding:10px 8px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)">#</th>
+                    <th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)">ATIVIDADE</th>
+                    <th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)">HORAS ▼</th>
+                    <th style="text-align:center;padding:10px 12px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)">% DO PARADO</th>
+                  </tr>
+                </thead>
+                <tbody>${tRows}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }).join('');
+
+      $('resultTable').innerHTML = mainHtml + `
+        <div style="margin-top:32px;padding:0 2px">
+          <div style="font-size:17px;font-weight:900;color:var(--ink);margin-bottom:2px">Ofensores improdutivos por período</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Classificação: IMPRODUTIVO — ordenado por horas (maior → menor).</div>
+          ${periodTablesHtml}
+        </div>`;
+      $('resultTable').classList.remove('hidden');
+    }
+
+    function appendOffenderBlock(rows, calculated, baseOffenders, title, mapName) {
+      rows.push(`<tr class="section-row"><th>${title}</th>${calculated.map(() => `<td>% e horas</td>`).join('')}</tr>`);
+
+      if (!baseOffenders.length) {
+        rows.push(`<tr class="offender-line"><th>Sem ofensores</th>${calculated.map(() => `<td class="empty-hit">não houve apontamento</td>`).join('')}</tr>`);
+        return;
+      }
+      for (const off of baseOffenders) {
+        const cells = calculated.map(p => {
+          const map = p[mapName] || {};
+          const h = map[off.atividade] || 0;
+          if (h <= 0) return `<td class="empty-hit">não houve esse apontamento</td>`;
+          const pct = p.parado > 0 ? (h / p.parado) * 100 : 0;
+          return `<td>${fmtPct(pct)} — ${fmtHours(h)}</td>`;
+        }).join('');
+        rows.push(`<tr class="offender-line"><th>${escapeHtml(toTitle(off.atividade))}</th>${cells}</tr>`);
+      }
+    }
+
+    function copyTableToClipboard() {
+      if (!state.lastResult) {
+        setStatus('Calcule a comparação antes de copiar.', true);
+        return;
+      }
+      const text = tableToTsv($('comparisonTable'));
+      navigator.clipboard.writeText(text).then(() => {
+        setStatus('Tabela copiada. Agora é só colar no Excel.', false);
+      }).catch(() => {
+        fallbackCopy(text);
+        setStatus('Tabela copiada. Agora é só colar no Excel.', false);
+      });
+    }
+
+    function exportCsv() {
+      if (!state.lastResult) {
+        setStatus('Calcule a comparação antes de exportar.', true);
+        return;
+      }
+      const csv = tableToTsv($('comparisonTable')).replace(/\t/g, ';');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'resultado_comparativo_4_periodos.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus('CSV exportado.', false);
+    }
+
+    function tableToTsv(table) {
+      const lines = [];
+      for (const tr of table.querySelectorAll('tr')) {
+        const cells = [...tr.children].map(td => td.textContent.trim().replace(/\s+/g, ' '));
+        lines.push(cells.join('\t'));
+      }
+      return lines.join('\n');
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+
+    function normText(v) {
+      return String(v ?? '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim().toUpperCase();
+    }
+
+    function fmtHours(v) {
+      const n = Number(v || 0);
+      return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' h';
+    }
+
+    function fmtPct(v) {
+      const n = Number(v || 0);
+      return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+    }
+
+    function toTitle(s) {
+      return String(s ?? '').toLowerCase().replace(/\b\S/g, l => l.toUpperCase());
+    }
+
+    function formatDateBr(key) {
+      if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(key)) return '-';
+      const [y, m, d] = key.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ─── EXPORTAR POWERPOINT ────────────────────────────────────────────────
+    async function exportPptx() {
+      if (!state.lastResult) {
+        setStatus('Calcule a comparação antes de exportar.', true);
+        return;
+      }
+      setStatus('Gerando PowerPoint...', false);
+
+      const R = state.lastResult;
+      const skipP1     = $('skipP1Toggle').checked;
+      const calculated = skipP1 ? R.calculated.slice(1) : R.calculated;
+      const periods    = skipP1 ? R.periods.slice(1)    : R.periods;
+      const periodOffset = skipP1 ? 1 : 0;
+      const frente     = ($('frenteColheita').value || '').trim();
+
+      // paleta
+      const C = { navy: '063F58', teal: '0B7497', white: 'FFFFFF', ink: '132033',
+                  muted: '667085', line: 'D8E1EA', soft: 'E7F4F8', red: 'B42318',
+                  green: '087443', yellow: 'FFF7CC', lightbg: 'F7FBFD' };
+
+      const makeShadow = () => ({ type:'outer', color:'000000', blur:8, offset:2, angle:45, opacity:0.10 });
+
+      const pres = new PptxGenJS();
+      pres.layout  = 'LAYOUT_WIDE'; // 13.3 x 7.5
+      pres.title   = 'Painel Comparativo de Eficiência Operacional';
+      pres.author  = 'Axiagro';
+
+      const W = 13.3, H = 7.5;
+      const pLabels = periods.map((p,i) => `P${i+1+periodOffset}\n${formatDateBr(p.start)} a ${formatDateBr(p.end)}`);
+
+      // ── helper: cabeçalho de slide ───────────────────────────────────────
+      function addHeader(slide, title, subtitle) {
+        slide.background = { color: 'F0F5F8' };
+        slide.addShape(pres.shapes.RECTANGLE, { x:0, y:0, w:W, h:1.0, fill:{ color: C.navy }, line:{ color: C.navy } });
+        slide.addText(title, { x:0.4, y:0, w:9, h:1.0, fontSize:22, bold:true, color:C.white, valign:'middle', margin:0 });
+        if (frente) slide.addText(frente, { x:0.4, y:0, w:9, h:1.0, fontSize:13, color:'A8D8EA', valign:'middle', align:'left',
+          margin:0, paraSpaceBefore:26 });
+        if (subtitle) slide.addText(subtitle, { x:0, y:0, w:W, h:1.0, fontSize:12, color:'A8D8EA', valign:'middle', align:'right', margin:12 });
+      }
+
+      // ── helper: card métrica ─────────────────────────────────────────────
+      function addMetricCard(slide, x, y, w, h, label, values, color) {
+        slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, fill:{ color:C.white }, rectRadius:0.12, shadow: makeShadow(), line:{ color:C.line, pt:1 } });
+        slide.addText(label, { x:x+0.12, y:y+0.10, w:w-0.24, h:0.28, fontSize:9, bold:true, color:C.muted, align:'center', margin:0 });
+        const valTexts = values.map((v,i) => ({
+          text: v + (i < values.length-1 ? '   ' : ''),
+          options: { fontSize: 13, bold:true, color: color || C.navy }
+        }));
+        slide.addText(valTexts, { x:x+0.08, y:y+0.36, w:w-0.16, h:0.40, align:'center', margin:0 });
+        const pLabShort = ['P1','P2','P3','P4'];
+        const labelTexts = pLabShort.map((l,i) => ({
+          text: l + (i<3 ? '   ' : ''),
+          options: { fontSize: 8, color: C.muted }
+        }));
+        slide.addText(labelTexts, { x:x+0.08, y:y+0.72, w:w-0.16, h:0.22, align:'center', margin:0 });
+      }
+
+      // ── helper: tabela de ofensores ──────────────────────────────────────
+      function buildOffenderTable(offenders, calculated, mapName) {
+        const hdr = [
+          { text:'#',        options:{ bold:true, color:C.white, fill:{ color:C.navy }, align:'center' } },
+          { text:'Atividade',options:{ bold:true, color:C.white, fill:{ color:C.navy }, align:'left'   } },
+          { text:'P1 % / h', options:{ bold:true, color:C.white, fill:{ color:C.navy }, align:'center' } },
+          { text:'P2 % / h', options:{ bold:true, color:C.white, fill:{ color:C.navy }, align:'center' } },
+          { text:'P3 % / h', options:{ bold:true, color:C.white, fill:{ color:C.navy }, align:'center' } },
+          { text:'P4 % / h', options:{ bold:true, color:C.white, fill:{ color:C.navy }, align:'center' } },
+        ];
+        const dataRows = offenders.map((off, idx) => {
+          const bg = idx % 2 === 0 ? C.white : C.lightbg;
+          const cells = [
+            { text: String(idx+1), options:{ align:'center', color:C.muted, bold:true, fill:{ color:bg } } },
+            { text: toTitle(off.atividade), options:{ align:'left', bold:true, color:C.ink, fill:{ color:bg } } },
+          ];
+          calculated.forEach(p => {
+            const map = p[mapName] || {};
+            const h = map[off.atividade] || 0;
+            const pct = p.parado > 0 ? (h / p.parado) * 100 : 0;
+            const val = h > 0
+              ? `${pct.toLocaleString('pt-BR',{maximumFractionDigits:1})}% / ${h.toLocaleString('pt-BR',{maximumFractionDigits:1})}h`
+              : '—';
+            cells.push({ text: val, options:{ align:'center', color: h>0 ? C.ink : C.muted, fill:{ color:bg } } });
+          });
+          return cells;
+        });
+        return [hdr, ...dataRows];
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // SLIDE ÚNICO CONSOLIDADO
+      // Layout: cabeçalho | 4 cards período | 4 cards métrica | 2 colunas ofensores
+      // ════════════════════════════════════════════════════════════════════
+      const s1 = pres.addSlide();
+      s1.background = { color: 'F0F5F8' };
+
+      // ── CABEÇALHO ────────────────────────────────────────────────────────
+      s1.addShape(pres.shapes.RECTANGLE, { x:0, y:0, w:W, h:0.70, fill:{ color:C.navy }, line:{ color:C.navy } });
+      const tituloTxt = 'Eficiência Operacional — Visão Comparativa';
+      s1.addText(tituloTxt, { x:0.35, y:0, w:8.5, h:0.70, fontSize:17, bold:true, color:C.white, valign:'middle', margin:0 });
+      if (frente) s1.addText(frente, { x:0, y:0, w:W-0.35, h:0.70, fontSize:12, bold:true, color:'A8D8EA', valign:'middle', align:'right', margin:10 });
+
+      // ── LINHA 1: 4 cards de período (estreitos) ───────────────────────────
+      const pCardW = (W - 0.7) / 4;
+      const pCardH = 0.55;
+      const pCardY = 0.80;
+      periods.forEach((p, i) => {
+        const x = 0.35 + i * (pCardW + 0.07);
+        const isRef = i === 3;
+        s1.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y:pCardY, w:pCardW, h:pCardH,
+          fill:{ color: isRef ? C.teal : C.white }, rectRadius:0.08,
+          shadow: makeShadow(), line:{ color: isRef ? C.teal : C.line, pt:1 } });
+        s1.addText([
+          { text:`P${i+1+periodOffset}  `, options:{ bold:true, fontSize:10, color: isRef ? C.white : C.navy } },
+          { text:`${formatDateBr(p.start)} a ${formatDateBr(p.end)}`, options:{ fontSize:9, color: isRef ? 'D0EEF8' : C.muted } }
+        ], { x:x+0.08, y:pCardY, w:pCardW-0.16, h:pCardH, valign:'middle', margin:0 });
+      });
+
+      // ── LINHA 2: 4 cards de métricas ────────────────────────────────────
+      const mDefs = [
+        { label:'% Eficiência Op.', key:'eficiencia',    color:C.green },
+        { label:'% Produtivo',      key:'pctProd',       color:C.navy  },
+        { label:'% Improdutivo',    key:'pctImprod',     color:C.red   },
+        { label:'% Disponibilidade',key:'pctDisponivel', color:C.teal  },
+      ];
+      const mCardW = (W - 0.7) / 4;
+      const mCardH = 1.05;
+      const mCardY = pCardY + pCardH + 0.10;
+      mDefs.forEach((m, mi) => {
+        const x = 0.35 + mi * (mCardW + 0.07);
+        s1.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y:mCardY, w:mCardW, h:mCardH,
+          fill:{ color:C.white }, rectRadius:0.10, shadow:makeShadow(), line:{ color:C.line, pt:1 } });
+        s1.addText(m.label, { x:x+0.1, y:mCardY+0.06, w:mCardW-0.2, h:0.20,
+          fontSize:8, bold:true, color:C.muted, align:'center', margin:0 });
+
+        // todos os valores P1..P4 lado a lado, sem caixinha
+        const vals = calculated.map(p => p[m.key]);
+        const valRuns = vals.map((v, i) => [
+          { text: `P${i+1+periodOffset} `, options:{ fontSize:7, color:C.muted } },
+          { text: fmtPct(v), options:{ fontSize:10, bold:true, color: m.color } },
+          { text: i < vals.length-1 ? '   ' : '', options:{ fontSize:8 } }
+        ]).flat();
+        s1.addText(valRuns, { x:x+0.06, y:mCardY+0.27, w:mCardW-0.12, h:0.26, align:'center', margin:0, valign:'middle' });
+
+        // separador
+        s1.addShape(pres.shapes.LINE, { x:x+0.15, y:mCardY+0.58, w:mCardW-0.30, h:0,
+          line:{ color:C.line, pt:0.5 } });
+
+        // diferenças
+        const diffRuns = periods.slice(1).map((_, i) => {
+          const lbl  = `P${i+2+periodOffset}-P${i+1+periodOffset}`;
+          const diff = vals[i+1] - vals[i];
+          const isPositiveBetter = m.key !== 'pctImprod';
+          const isGood = isPositiveBetter ? diff >= 0 : diff <= 0;
+          const sign  = diff >= 0 ? '+' : '';
+          const clr   = Math.abs(diff) < 0.01 ? C.muted : (isGood ? C.green : C.red);
+          return [
+            { text: lbl, options:{ fontSize:7, color:C.muted } },
+            { text: ` ${sign}${diff.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}pp`, options:{ fontSize:8, bold:true, color:clr } },
+            { text: i<periods.length-2 ? '   ' : '', options:{ fontSize:7, color:C.muted } }
+          ];
+        }).flat();
+        s1.addText(diffRuns, { x:x+0.06, y:mCardY+0.62, w:mCardW-0.12, h:0.38, align:'center', margin:0, valign:'middle' });
+      });
+
+      // ── LINHA 3: 2 colunas — Ofensores Operacionais | Manutenção ─────────
+      const offY    = mCardY + mCardH + 0.12;
+      const offH    = H - offY - 0.18;
+      const colW    = (W - 0.85) / 2;
+      const col1X   = 0.35;
+      const col2X   = col1X + colW + 0.15;
+
+      function drawOffenderBlock(slide, x, y, w, h, title, offenders, mapName, headerColor, byFrontMap) {
+        // título da seção
+        slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h:0.32,
+          fill:{ color: headerColor }, rectRadius:0.07, line:{ color: headerColor } });
+        slide.addText(title, { x:x+0.1, y, w:w-0.2, h:0.32,
+          fontSize:9, bold:true, color:C.white, valign:'middle', margin:0 });
+
+        // cabeçalho da tabela — dinâmico + coluna frente
+        const thY = y + 0.34;
+        const thH = 0.25;
+        const frenteColW = 1.60;
+        const atividadeColW = 2.20; // reduzido para dar mais espaço aos números
+        const pCols = periods.map((_, i) => `P${i+1+periodOffset}`);
+        const heads  = ['#', 'Atividade', ...pCols, 'Frente c/ mais recorrência'];
+        const pColW  = (w - 0.26 - atividadeColW - frenteColW) / periods.length;
+        const colWs  = [0.26, atividadeColW, ...periods.map(() => pColW), frenteColW];
+        let cx = x;
+        heads.forEach((h2, hi) => {
+          const isFrente = hi === heads.length - 1;
+          slide.addShape(pres.shapes.RECTANGLE, { x:cx, y:thY, w:colWs[hi], h:thH,
+            fill:{ color: isFrente ? '0B6E4F' : 'E0EBF0' }, line:{ color:C.line, pt:0.3 } });
+          slide.addText(h2, { x:cx, y:thY, w:colWs[hi], h:thH,
+            fontSize:7, bold:true, color: isFrente ? C.white : C.ink,
+            align:'center', valign:'middle', margin:0 });
+          cx += colWs[hi];
+        });
+
+        // linhas
+        const rowH   = (h - 0.34 - thH - 0.05) / Math.max(offenders.length, 1);
+        const safeRH = Math.min(rowH, 0.42);
+        const lastPeriodIdx = calculated.length - 1;
+        const lastColIdx    = heads.length - 2; // índice do P4
+        const frenteColIdx  = heads.length - 1;
+
+        // cores de alerta por ranking top 3
+        const alertBg  = ['FFECEC', 'FFF4E5', 'FFFDE7'];
+        const alertP4Bg = ['FFCDD2', 'FFE0B2', 'FFF9C4'];
+        const alertFnt = ['C62828', 'E65100', '827717'];
+        const badgeColors = [C.red, 'E65100', 'F9A825'];
+
+        offenders.forEach((off, idx) => {
+          const ry = thY + thH + idx * safeRH;
+          if (ry + safeRH > y + h + 0.05) return;
+          const isAlert = idx < 3;
+          const bg = isAlert ? alertBg[idx] : (idx % 2 === 0 ? C.white : C.lightbg);
+          let cx2 = x;
+          const mapLast = calculated[lastPeriodIdx][mapName] || {};
+          const hLast   = mapLast[off.atividade] || 0;
+
+          // frente top
+          const fmap     = (byFrontMap || {})[off.atividade] || {};
+          const fEntries = Object.entries(fmap).sort((a,b)=>b[1]-a[1]);
+          const totalOcc = fEntries.reduce((s,[,c])=>s+c, 0);
+          const topF     = fEntries[0];
+          const frenteVal = topF
+            ? `${toTitle(topF[0])}\n${topF[1]}x — ${totalOcc>0?((topF[1]/totalOcc)*100).toFixed(1):0}%`
+            : '—';
+
+          const cols = [String(idx+1), toTitle(off.atividade),
+            ...calculated.map(p => {
+              const map = p[mapName] || {};
+              const hh  = map[off.atividade] || 0;
+              const pct = p.parado > 0 ? (hh/p.parado)*100 : 0;
+              return hh > 0 ? `${pct.toFixed(1)}%\n${hh.toFixed(1)}h` : '—';
+            }),
+            frenteVal
+          ];
+
+          cols.forEach((val, ci) => {
+            const isLast   = ci === lastColIdx;
+            const isFrente = ci === frenteColIdx;
+            const isNum    = ci === 0;
+            const cellBg   = isLast && isAlert ? alertP4Bg[idx]
+              : isLast && hLast > 0 ? 'DBEEF8'
+              : isFrente && topF ? 'D4EFDF'
+              : isNum ? bg
+              : bg;
+
+            slide.addShape(pres.shapes.RECTANGLE, { x:cx2, y:ry, w:colWs[ci], h:safeRH,
+              fill:{ color:cellBg }, line:{ color: isAlert ? 'FFD0B0' : C.line, pt:0.3 } });
+
+            const txtColor = isLast && isAlert ? alertFnt[idx]
+              : isLast && hLast > 0 ? C.teal
+              : isFrente && topF ? '0B6E4F'
+              : isAlert && ci === 1 ? alertFnt[idx]
+              : C.ink;
+
+            // célula do número: badge colorido para top 3
+            if (isNum && isAlert) {
+              slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+                x: cx2+0.03, y: ry+safeRH*0.18, w: colWs[ci]-0.06, h: safeRH*0.64,
+                fill:{ color: badgeColors[idx] }, rectRadius:0.05, line:{ color: badgeColors[idx] }
+              });
+              slide.addText(String(idx+1), { x:cx2+0.03, y:ry+safeRH*0.18, w:colWs[ci]-0.06, h:safeRH*0.64,
+                fontSize:8, bold:true, color:C.white, align:'center', valign:'middle', margin:0 });
+            } else {
+              slide.addText(val, { x:cx2+0.02, y:ry, w:colWs[ci]-0.04, h:safeRH,
+                fontSize: ci===1 ? 7.5 : 7, bold: ci<=1 || isLast || isFrente,
+                color: txtColor,
+                align: ci===1 ? 'left' : 'center', valign:'middle', margin:0 });
+            }
+            cx2 += colWs[ci];
+          });
+        });
+        if (!offenders.length) {
+          slide.addText('Nenhum ofensor encontrado.', { x, y:thY+thH, w, h:0.5,
+            fontSize:10, color:C.muted, align:'center', valign:'middle', margin:0 });
+        }
+      }
+
+      const offNoMaint = (R.baseOffendersNoMaintenance || []).slice(0,10);
+      const offMaint   = (R.baseOffendersMaintenance   || []).slice(0,10);
+      const lastCalcFront = calculated[calculated.length - 1];
+
+      drawOffenderBlock(s1, col1X, offY, colW, offH,
+        'Top 10 Ofensores Operacionais (Improdutivo) — ordenado P4',
+        offNoMaint, 'offendersNoMaintenance', C.navy, lastCalcFront.offNoMaintByFront);
+
+      drawOffenderBlock(s1, col2X, offY, colW, offH,
+        'Top 10 Manutenção — ordenado P4',
+        offMaint, 'offendersMaintenance', '6B4C9A', lastCalcFront.offMaintByFront);
+
+      const fname = (frente ? frente.replace(/[^a-z0-9]/gi,'_') : 'Painel') + '_Eficiencia.pptx';
+      await pres.writeFile({ fileName: fname });
+      setStatus('PowerPoint gerado e baixado com sucesso!', false);
+    }
+    // ────────────────────────────────────────────────────────────────────────
+  </script>
+</body>
+</html>
