@@ -1,0 +1,169 @@
+S4 and Sigma Phi Maps – Version 1.0
+Release Date: 2026-05-01
+
+For additional information about the EMBRACE Space Weather Program, please visit:
+
+http://www2.inpe.br/climaespacial/
+
+OVERVIEW
+
+This directory contains gridded ionospheric scintillation maps generated from GNSS observations collected by the scintillation monitoring networks operated by:
+
+- EMBRACE/INPE
+- IBGE
+- INCT-GNSS-NavAer/UNESP
+- CBJLSW/NSSC/CAS
+
+The maps represent the spatial distribution of two ionospheric scintillation parameters:
+
+- S4 Index — Amplitude scintillation index (dimensionless)
+- Sigma Phi (σφ) — Phase scintillation index (radians)
+
+DIRECTORY STRUCTURE
+
+maps/
+└── parameter/
+    └── year/
+        └── doy/
+            └── data files
+
+where:
+
+parameter : map type (s4 or sigma_phi)
+year      : observation year
+doy       : day of year (001–366)
+data files: map files corresponding to a specific epoch
+
+FILE NAMING CONVENTION
+
+Map files follow the format: PARAMETERMAP_YYYYMMDD_HHMM.txt
+
+where:
+
+PARAMETER : S4 (S4 map) or PHI (Sigma Phi map)
+YYYY      : year (4 digits)
+MM        : month (2 digits)
+DD        : day (2 digits)
+HH        : hour (UTC)
+MM        : minute (UTC)
+
+Examples:
+
+S4MAP_20260101_0000.txt
+PHIMAP_20260101_0000.txt
+
+GRID DESCRIPTION
+
+Each file contains a two-dimensional regular geographic grid represented as an ASCII matrix.
+
+Geographic Coverage
+
+Longitude range: -140° to -20°
+Latitude range :  -60° to 50°
+
+Grid Organization
+
+- Rows correspond to latitude values.
+- Columns correspond to longitude values.
+- Grid values represent the estimated scintillation parameter at each ionospheric pierce point.
+
+Missing Data
+
+Unavailable or invalid grid cells are represented by: -1
+
+Users should convert these values to NaN (or an equivalent missing-data flag) before performing analyses.
+
+S4 MAPS
+
+S4 maps represent the spatial distribution of the ionospheric amplitude scintillation index.
+
+Units: Dimensionless
+
+Typical Interpretation
+
+S4 < 0.50          Weak scintillation
+0.50 ≤ S4 < 0.80   Moderate scintillation
+S4 ≥ 0.80          Strong scintillation
+
+SIGMA PHI MAPS
+
+Sigma Phi (σφ) maps represent the spatial distribution of the ionospheric phase scintillation index.
+
+Units: Radians
+
+Typical Interpretation
+
+σφ < 0.40          Weak phase scintillation
+0.40 ≤ σφ < 0.70   Moderate phase scintillation
+σφ ≥ 0.70          Strong phase scintillation
+
+STATIONS COORDINATES:
+|--------------------------------------------------------------------------------------------------------------------|
+|fullname             |code			            |longitude     |latitude    |network	       	     |
+|---------------------|-------------------------------------|--------------|-----------------------------------------|
+|Alfredo Marcondes    |STAF			            |-51.414574    |-21.954102  |INCT GNSS-NavAer/UNESP      |
+|Álvares Machado      |STAV			            |-51.49987     |-22.09647   |INCT GNSS-NavAer/UNESP      |
+|Aquidauana           |MSAQ			            |-55.671165    |-20.452944  |EMBRACE / IBGE /INPE        |
+|Araguatins           |STAR			            |-48.073338    |-5.651169   |INCT GNSS-NavAer/UNESP      |
+|Bacabal              |MABB			            |-44.815722    |-4.2409592  |EMBRACE / IBGE /INPE        |
+|Balneário Rincão     |STBR			            |-49.21393     |-28.826715  |INCT GNSS-NavAer/UNESP      |
+|Boa Vista            |STBV			            |-60.697174    |2.8337984   |INCT GNSS-NavAer/UNESP      |
+|Botucatu             |SPBO			            |-48.4323      |-22.852467  |INCT GNSS-NavAer/UNESP      |
+|Cachoeira Paulista   |STC1/STCP		            |-45.014732    |-22.702599  |INCT GNSS-NavAer/UNESP      |
+|Colider              |STCL			            |-55.448093    |-10.81897   |INCT GNSS-NavAer/UNESP      |
+|Cuiabá               |STCB			            |-56.06989     |-15.555245  |INCT GNSS-NavAer/UNESP      |
+|Curitiba             |STCT			            |-49.236618    |-25.456932  |INCT GNSS-NavAer/UNESP      |
+|Eusébio              |CEEU			            |-38.4246      |-3.87994    |EMBRACE / IBGE /INPE        |
+|Fortaleza            |UFBA/FRTZ		            |-38.577633    |-3.744554   |INCT GNSS-NavAer/UNESP      |
+|Ilhéus               |STIL			            |-39.1724      |-14.796632  |INCT GNSS-NavAer/UNESP      |
+|Inconfidentes        |INCO			            |-46.328114    |-22.318548  |INCT GNSS-NavAer/UNESP      |
+|Ji-Paraná            |ROJI			            |-61.9597      |-10.8639    |EMBRACE / IBGE /INPE        |
+|Lins                 |SPLI			            |-49.733696    |-21.665205  |INCT GNSS-NavAer/UNESP      |
+|Manaus               |STMN			            |-59.974903    |-3.1101797  |INCT GNSS-NavAer/UNESP      |
+|Maringá              |PRMA			            |-51.938423    |-23.409689  |INCT GNSS-NavAer/UNESP      |
+|Monte Carmelo        |STMC			            |-47.5238      |-18.724026  |INCT GNSS-NavAer/UNESP      |
+|Natal                |STNT/RNNA		            |-35.196213    |-5.8405857  |INCT GNSS-NavAer/UNESP      |
+|Palmas               |PALM			            |-48.3113      |-10.199649  |INCT GNSS-NavAer/UNESP      |
+|Pirapozinho          |STPZ			            |-51.425987    |-22.24089   |INCT GNSS-NavAer/UNESP      |
+|Porto Alegre         |POAL			            |-51.119682    |-30.073896  |INCT GNSS-NavAer/UNESP      |
+|Presidente Epitácio  |STPE			            |-52.111637    |-21.785223  |INCT GNSS-NavAer/UNESP      |
+|Presidente Prudente  |PRU2/MOR3/PPT5/PRU4/CTAS             |-51.407078    |-22.122038  |INCT GNSS-NavAer/UNESP      |
+|Recife               |STRE			            |-34.952946    |-8.053972   |INCT GNSS-NavAer/UNESP      |
+|Rosana               |ROSA			            |-52.952087    |-22.523304  |INCT GNSS-NavAer/UNESP      |
+|Santa Helena         |STSH			            |-54.344364    |-24.846996  |INCT GNSS-NavAer/UNESP      |
+|Santarém             |PASM			            |-54.7289      |-2.42797    |EMBRACE / IBGE /INPE        |
+|São João da Boa Vista|STSJ			            |-46.79223     |-21.997086  |INCT GNSS-NavAer/UNESP      |
+|São José dos Campos  |SJC1/SJCE/SJCU  		            |-45.861057    |-23.20806   |INCT GNSS-NavAer/UNESP      |
+|São Luis             |SLMA			            |-44.21229     |-2.593464   |INCT GNSS-NavAer/UNESP      |
+|Senhor do Bomfim     |STSB			            |-40.146843    |-10.444889  |INCT GNSS-NavAer/UNESP      |
+|Sorriso              |MTSR			            |-55.727413    |-12.545235  |EMBRACE / IBGE /INPE        |
+|Uruaçu               |GOUR			            |-49.1436      |-14.5092    |EMBRACE / IBGE /INPE        |
+|Vitória da Conquista |BAVC			            |-40.8027      |-14.8883    |EMBRACE / IBGE /INPE        |
+|---------------------|-------------------------------------|--------------|-----------------------------------------|
+
+DATA SOURCES
+
+Scintillation Data Usage and Acknowledgment Guidelines
+Institutions and Operators:
+- INCT-GNSS-NavAer/UNESP (National Institute of Science and Technology – GNSS NavAer/São Paulo State University Julio de Mesquita Filho)
+Operator: UNESP
+- EMBRACE/IBGE/INPE (Brazilian Studies and Monitoring of Space Weather/Brazilian Institute of Geography and Statistics/National Institute for Space Research)
+Operator: EMBRACE/INPE and IBGE
+- CBJLSW/NSSC/CAS (Cina-Brasil Joint Laboratory for Space Weather/National Space Science Center/Chinese Academy of Sciences)
+Operator: EMBRACE/INPE and CBJLSW/NSSC/CAS
+
+Acknowledgment Suggestion:
+The authors would like to thank the scintillation data network composed of instruments operated by INCT/UNESP, EMBRACE/INPE/IBGE, and NSSC/CAS. We thank EMBRACE/INPE of MCTI for their coordination and data provision and express our gratitude to all contributing institutions for their support in maintaining and sharing this valuable scientific resource.
+
+Acknowledgement to the National Institute of Science and Technology for GNSS in Support of Air Navigation (INCT-GNSS-NavAer), funded by CNPq (465648/2014-2), FAPESP (2017/50115-0), and CAPES (88887.137186/2017-00).
+
+Note: INCT-GNSS-NavAer was financed by CNPq, FAPESP and CAPES. The following publications are advised for citation: DOIs: https://doi.org/10.1590/jatm.v14.1249, https://doi.org/10.1590/jatm.v15.1288.
+
+Version: 1.0
+Dataset: S4 and Sigma Phi Gridded Scintillation Maps
+Maintained by: EMBRACE/INPE and collaborating institutions.
+
+
+    
+
+    
